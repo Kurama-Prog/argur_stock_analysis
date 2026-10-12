@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Augur{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div class="page-header__text">
+        <h1 class="page-title" data-i18n="register-title">注册</h1>
+        <p class="page-desc" data-i18n="register-desc">创建新的 Augur 账号</p>
+    </div>
+</header>
+
+<div class="auth-panel">
+    <form id="register-form" onsubmit="handleRegister(event)" aria-labelledby="register-title">
+        <div class="form-group">
+            <label for="username" data-i18n="register-username">用户名</label>
+            <input type="text" id="username" name="username" class="form-input" required minlength="3" maxlength="32"
+                   placeholder="Choose a username (3-32 chars)" autocomplete="username" aria-required="true"
+                   aria-describedby="username-help" pattern="[a-zA-Z0-9_]+">
+            <span id="username-help" class="text-muted" style="font-size:0.75rem;">Letters, numbers, and underscores only</span>
+        </div>
+        <div class="form-group">
+            <label for="password" data-i18n="register-password">密码</label>
+            <input type="password" id="password" name="password" class="form-input" required minlength="6" maxlength="128"
+                   placeholder="Choose a password (min 6 chars)" autocomplete="new-password" aria-required="true">
+        </div>
+        <div class="form-group">
+            <label for="password2" data-i18n="register-password2">确认密码</label>
+            <input type="password" id="password2" name="password2" class="form-input" required minlength="6" maxlength="128"
+                   placeholder="Confirm your password" autocomplete="new-password" aria-required="true">
+        </div>
+        <div id="register-error" class="auth-error" role="alert"></div>
+        <div id="register-success" style="display:none; margin-bottom:1rem; padding:0.75rem; background:rgba(0,200,83,0.1); border:1px solid rgba(0,200,83,0.3); border-radius:var(--r-md); color:var(--signal-buy); font-size:0.9rem;" role="status"></div>
+        <button type="submit" class="btn btn-primary btn-block" data-i18n="register-submit">
+            创建账号
+        </button>
+    </form>
+    <p class="auth-panel-footer">
+        <span data-i18n="register-login-link">已有账号？</span> <a href="/login">Sign In</a>
+    </p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function handleRegister(event) {
+    event.preventDefault();
+    var errorEl = document.getElementById('register-error');
+    var successEl = document.getElementById('register-success');
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+    var password2 = document.getElementById('password2').value;
+
+    if (!username || !password || !password2) {
+        errorEl.textContent = 'Please fill in all fields.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (password !== password2) {
+        errorEl.textContent = 'Passwords do not match.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (password.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    try {
+        var resp = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: username, password: password})
+        });
+        var data = await resp.json();
+        if (resp.ok && data.status === 'ok') {
+            successEl.textContent = 'Account created! Redirecting to login...';
+            successEl.style.display = 'block';
+            setTimeout(function() { window.location.href = '/login'; }, 1500);
+        } else {
+            errorEl.textContent = data.detail || 'Registration failed.';
+            errorEl.style.display = 'block';
+        }
+    } catch(e) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.style.display = 'block';
+    }
+}
+</script>
+{% endblock %}

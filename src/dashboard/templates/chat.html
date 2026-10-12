@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+
+{% block title %}AI Chat - Augur{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div class="page-header__text">
+    <h1 class="page-title">AI Investment Chat
+        {% if llm_enabled %}
+        <span class="llm-badge llm-on" title="OpenAI 兼容协议已接入，真实推理对话">⚡ LLM ONLINE</span>
+        {% else %}
+        <span class="llm-badge llm-off" title="未配置 OPENAI_API_KEY，使用模板回复。">📋 TEMPLATE MODE</span>
+        {% endif %}
+    </h1>
+    <p class="page-desc">Discuss markets with legendary personas. (HD-2D Voice & Logic)</p>
+    </div>
+</header>
+<style>
+.llm-badge { font-family: var(--font-pixfin); font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; vertical-align: middle; margin-left: 8px; letter-spacing: 0.5px; }
+.llm-badge.llm-on { background: rgba(255,140,0,0.15); color: var(--accent-orange, #ff8c00); border: 1px solid rgba(255,140,0,0.5); }
+.llm-badge.llm-off { background: rgba(255,255,255,0.06); color: var(--text-muted, #888); border: 1px solid var(--border-color, #333); }
+
+/* Ticker input row */
+.chat-ticker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.chat-ticker-label { font: 0.7rem/1 var(--font-pixfin, monospace); color: var(--text-muted, #888); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+#chat-ticker-input {
+    width: 120px; padding: 4px 10px; background: var(--bg-primary, #0e0e14);
+    border: 1px solid var(--border-color, #333); border-radius: 4px;
+    color: var(--text-primary, #eee); font: 700 0.85rem/1 var(--font-mono, monospace);
+    text-transform: uppercase; letter-spacing: 1px;
+}
+#chat-ticker-input:focus { outline: none; border-color: var(--accent-orange, #ff8c00); }
+
+/* Chat Data Card */
+.chat-data-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 16px; margin-bottom: 12px;
+    background: var(--bg-card, var(--bg-secondary, #12121a));
+    border: 1px solid var(--border-color, #2a2a38);
+    border-radius: var(--r-md, 6px); flex-wrap: wrap;
+}
+.cdc-ticker { font: 700 1rem/1 var(--font-mono, monospace); color: var(--accent-orange, #ff8c00); }
+.cdc-price { font: 600 0.9rem/1 var(--font-data, monospace); color: var(--text-primary, #eee); }
+.cdc-price .price-change { font-size: 0.8rem; margin-left: 4px; }
+.cdc-price .price-change.up { color: var(--signal-buy, #4caf50); }
+.cdc-price .price-change.down { color: var(--signal-sell, #f44336); }
+.cdc-signal { font: 700 0.75rem/1 var(--font-pixfin, monospace); text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 3px; }
+.cdc-signal.bullish { color: var(--signal-buy, #4caf50); border: 1px solid var(--signal-buy, #4caf50); }
+.cdc-signal.bearish { color: var(--signal-sell, #f44336); border: 1px solid var(--signal-sell, #f44336); }
+.cdc-signal.neutral  { color: var(--signal-neutral, #aaa); border: 1px solid var(--signal-neutral, #aaa); }
+.cdc-updated { font: 0.65rem/1 var(--font-sans, sans-serif); color: var(--text-muted, #666); margin-left: auto; }
+
+/* HD-2D Chat Enhancements */
+.chat-container { display: flex; gap: 1.5rem; height: calc(100vh - 200px); max-height: 700px; }
+.agent-selector {
+    width: 240px; flex-shrink: 0; background: var(--bg-secondary); border-radius: 4px; border: 1px solid var(--border-color); padding: 1rem; overflow-y: auto;
+}
+.chat-area {
+    flex: 1; display: flex; flex-direction: column; background: var(--bg-secondary); border-radius: 4px; border: 1px solid var(--border-color);
+}
+.chat-messages {
+    flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;
+}
+.chat-input-area {
+    padding: 1rem; border-top: 1px solid var(--border-color); background: var(--bg-tertiary, #151520);
+}
+
+.chat-agent-btn {
+    display: flex; align-items: center; gap: 0.75rem; width: 100%;
+    padding: 0.6rem 0.75rem; margin-bottom: 0.4rem;
+    background: transparent; border: 1px solid transparent; border-radius: 4px;
+    color: var(--text-primary); cursor: pointer; font-size: 0.85rem; font-family: var(--font-sys);
+    text-align: left; transition: all 0.15s;
+}
+.chat-agent-btn:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+.chat-agent-btn.active { background: rgba(255,140,0,0.1); color: var(--accent-orange); border-color: var(--accent-orange); font-weight: bold; }
+.agent-avatar { width: 32px; height: 32px; border-radius: 4px; image-rendering: pixelated; object-fit: cover; background: var(--bg-primary); border: 1px solid rgba(255,255,255,0.1); }
+
+/* Message Bubbles */
+.chat-msg { display: flex; max-width: 85%; }
+.chat-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.chat-msg.assistant { align-self: flex-start; }
+
+.chat-bubble { padding: 1rem 1.25rem; line-height: 1.6; }
+/* User Bubble - Terminal Dark Style */
+.user .chat-bubble {
+    background: rgba(20,20,30,0.9);
+    border: 1px solid var(--accent-orange);
+    color: var(--text-primary);
+    border-radius: 8px 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(255,140,0,0.1);
+}
+/* Assistant Bubble - Parchment Style */
+.assistant .chat-bubble {
+    background: linear-gradient(180deg, var(--parchment, #e8dcc0) 0%, var(--parchment-deep, #d4c4a0) 100%);
+    border: 2px solid var(--parchment-ink, #2a2118);
+    color: var(--parchment-ink, #2a2118);
+    border-radius: 0 8px 8px 8px;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    position: relative;
+}
+/* Typewriter effect for latest assistant message */
+.typewriter {
+    overflow: hidden;
+    white-space: pre-wrap;
+    animation: typing 1s steps(40, end);
+}
+@keyframes typing { from { max-height: 0; opacity: 0; } to { max-height: 1000px; opacity: 1; } }
+
+.chat-avatar-wrapper { flex-shrink: 0; margin: 0 1rem; margin-top: 0.5rem; }
+.chat-avatar-wrapper img { width: 48px; height: 48px; border-radius: 4px; image-rendering: pixelated; border: 2px solid var(--parchment-ink, #333); background: #111; }
+
+.chat-msg.system { align-self: center; background: transparent; text-align: center; color: var(--text-secondary); font-size: 0.9rem; max-width: 100%; display: block; }
+
+/* Inputs */
+#chat-input {
+    flex: 1; padding: 0.85rem 1rem; background: var(--bg-primary); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-sys);
+    transition: border-color 0.2s;
+}
+#chat-input:focus { outline: none; border-color: var(--accent-orange); box-shadow: 0 0 0 2px rgba(255,140,0,0.2); }
+
+.oracle-section-title {
+    margin: 0 0 1rem 0;
+    font-size: 0.8rem;
+    font-family: var(--font-pixfin);
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.oracle-welcome {
+    font-family: var(--font-pixfin);
+    font-size: 1.1rem;
+    color: var(--accent-orange);
+}
+</style>
+
+<div class="chat-container" role="main" aria-label="Chat interface">
+    <!-- Agent Selector -->
+    <div class="agent-selector" role="navigation" aria-label="Agent selection panel">
+        <h3 class="oracle-section-title">Oracle Council</h3>
+        <div id="agent-list" role="listbox" aria-label="Available agents">
+            <button class="chat-agent-btn active" data-agent="" onclick="selectAgent(this, '')" role="option" aria-selected="true">
+                <img src="/static/images/avatars/buffett.png" class="agent-avatar" alt="Random" style="filter: grayscale(100%);">
+                <span>Random Master</span>
+            </button>
+            {% for agent in agents %}
+            <button class="chat-agent-btn" data-agent="{{ agent.agent_id }}" onclick="selectAgent(this, '{{ agent.agent_id }}')" role="option" aria-selected="false">
+                <!-- Fallback to default if no image (using onerror) -->
+                <img src="/static/images/avatars/{{ agent.agent_id }}.png" class="agent-avatar" alt="{{ agent.name }}" onerror="this.src='/static/images/avatars/buffett.png'">
+                <span>{{ agent.name }}</span>
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat-area" role="region" aria-label="Chat messages area">
+        <!-- Ticker input + data card -->
+        <div style="padding: 12px 16px 0;">
+            <div class="chat-ticker-row">
+                <span class="chat-ticker-label">Ticker:</span>
+                <input type="text" id="chat-ticker-input" placeholder="e.g. AAPL" maxlength="15" autocomplete="off" aria-label="Stock ticker symbol" oninput="onChatTickerInput(this.value)">
+            </div>
+            <div id="chat-data-card" class="chat-data-card" style="display:none;" aria-live="polite" aria-label="Live stock data card">
+                <div class="cdc-ticker" id="cdc-ticker"></div>
+                <div class="cdc-price" id="cdc-price"></div>
+                <div class="cdc-signal" id="cdc-signal"></div>
+                <div class="cdc-updated" id="cdc-updated"></div>
+            </div>
+        </div>
+
+        <!-- Chat actions bar -->
+        <div style="display:flex; justify-content:flex-end; gap:6px; padding:0 16px 6px;">
+            <button type="button" class="btn btn-sm btn-ghost" onclick="exportChatMD()" id="chat-export-btn" style="display:none; font-size:0.72rem;">⤓ Export MD</button>
+            <button type="button" class="btn btn-sm btn-ghost" onclick="clearChat()" id="chat-clear-btn" style="display:none; font-size:0.72rem;">✕ Clear</button>
+        </div>
+
+        <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Conversation messages">
+            <div class="chat-msg system" role="status" id="chat-welcome-msg">
+                <p class="oracle-welcome">Welcome to the HD-2D Oracle Hall.</p>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">The masters await your inquiry. Select a persona and ask your questions.</p>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <form id="chat-form" onsubmit="sendMessage(event)" style="display: flex; gap: 0.75rem;" role="form" aria-label="Message input form">
+                <input type="text" id="chat-input" placeholder="Consult the oracles..." autocomplete="off" aria-label="Type your message" maxlength="2000">
+                <button type="submit" class="pixel-btn" aria-label="Send message">
+                    <span class="pixel-btn-inner">SUBMIT</span>
+                </button>
+            </form>
+        </div>
+    </div>
+    <div id="chat-sr-announce" aria-live="assertive" aria-atomic="true" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);"></div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+var selectedAgent = '';
+var selectedAgentImage = '/static/images/avatars/buffett.png';
+var _chatHistory = [];  // {role: 'user'|'assistant', agent: str, text: str}
+
+function selectAgent(btn, agentId) {
+    document.querySelectorAll('.chat-agent-btn').forEach(function(b) {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    selectedAgent = agentId;
+    selectedAgentImage = btn.querySelector('.agent-avatar').src;
+    
+    var name = btn.querySelector('span:last-child').textContent;
+    document.getElementById('chat-sr-announce').textContent = 'Selected agent: ' + name;
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var input = document.getElementById('chat-input');
+        if (document.activeElement === input) {
+            input.value = '';
+            input.blur();
+        }
+    }
+});
+
+async function sendMessage(event) {
+    event.preventDefault();
+    var input = document.getElementById('chat-input');
+    var message = input.value.trim();
+    if (!message) return;
+
+    var messagesEl = document.getElementById('chat-messages');
+
+    // User message
+    var userMsg = document.createElement('div');
+    userMsg.className = 'chat-msg user';
+    userMsg.innerHTML = '<div class="chat-bubble">' + message + '</div>';
+    _chatHistory.push({role: 'user', agent: 'You', text: message});
+    _showChatActionBtns();
+    messagesEl.appendChild(userMsg);
+
+    input.value = '';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    // Loading indicator
+    var loadingMsg = document.createElement('div');
+    loadingMsg.className = 'chat-msg assistant loading-msg';
+    loadingMsg.innerHTML = '<div class="chat-avatar-wrapper"><img src="' + selectedAgentImage + '"></div><div class="chat-bubble" style="opacity: 0.5;">Thinking...</div>';
+    messagesEl.appendChild(loadingMsg);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    try {
+        var body = {message: message};
+        if (selectedAgent) body.agent_id = selectedAgent;
+
+        var headers = {'Content-Type': 'application/json'};
+        var resp = await fetch('/api/chat', { method: 'POST', headers: headers, body: JSON.stringify(body) });
+        var data = await resp.json();
+        
+        // Remove loading
+        if (loadingMsg.parentNode) loadingMsg.parentNode.removeChild(loadingMsg);
+
+        // Assistant response
+        var assistantMsg = document.createElement('div');
+        assistantMsg.className = 'chat-msg assistant';
+        
+        // Use returned agent id for avatar if random was selected
+        var finalAvatar = selectedAgent ? selectedAgentImage : '/static/images/avatars/' + (data.agent_id || 'buffett') + '.png';
+        
+        var formattedHtml = data.response ? data.response.replace(/\n/g, '<br>') : 'No response.';
+        // Apply lightweight markdown logic if available globally, otherwise simple replace
+        if (typeof renderMarkdown === 'function') formattedHtml = renderMarkdown(data.response);
+        
+        assistantMsg.innerHTML = '<div class="chat-avatar-wrapper"><img src="' + finalAvatar + '" onerror="this.src=\'/static/images/avatars/buffett.png\'"></div>' +
+            '<div class="chat-bubble typewriter"><strong>' + (data.agent_name || 'Oracle') + '</strong><br><br>' + formattedHtml + '</div>';
+        
+        _chatHistory.push({role: 'assistant', agent: data.agent_name || 'Oracle', text: data.response || ''});
+        messagesEl.appendChild(assistantMsg);
+        document.getElementById('chat-sr-announce').textContent = 'New response from ' + (data.agent_name || 'Oracle');
+    } catch(e) {
+        if (loadingMsg.parentNode) loadingMsg.parentNode.removeChild(loadingMsg);
+        var errMsg = document.createElement('div');
+        errMsg.className = 'chat-msg system';
+        errMsg.textContent = 'Error: Could not get response. Please try again.';
+        messagesEl.appendChild(errMsg);
+    }
+
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    input.focus();
+}
+
+// ============ Chat Data Card ============
+var _cdcTicker = '';
+var _cdcPriceTimer = null;
+var _cdcTickerDebounce = null;
+var CDC_CACHE_KEY_PREFIX = 'augur-cdc-';
+var CDC_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function onChatTickerInput(val) {
+    clearTimeout(_cdcTickerDebounce);
+    var t = val.trim().toUpperCase();
+    _cdcTickerDebounce = setTimeout(function() {
+        if (t && /^[A-Z0-9.\-]{1,15}$/.test(t)) {
+            loadChatDataCard(t);
+        } else if (!t) {
+            hideChatDataCard();
+        }
+    }, 400);
+}
+
+function hideChatDataCard() {
+    _cdcTicker = '';
+    var card = document.getElementById('chat-data-card');
+    if (card) card.style.display = 'none';
+    if (_cdcPriceTimer) { clearInterval(_cdcPriceTimer); _cdcPriceTimer = null; }
+}
+
+function loadChatDataCard(ticker) {
+    if (!ticker) { hideChatDataCard(); return; }
+    _cdcTicker = ticker;
+
+    // Start periodic price refresh (clears previous if any)
+    if (_cdcPriceTimer) clearInterval(_cdcPriceTimer);
+    _cdcPriceTimer = setInterval(function() {
+        if (_cdcTicker) _cdcFetchPrice(_cdcTicker);
+    }, 60000);
+
+    // Fetch price immediately
+    _cdcFetchPrice(ticker);
+
+    // Fetch signal (use localStorage cache if fresh enough)
+    _cdcFetchSignal(ticker);
+}
+
+function _cdcFetchPrice(ticker) {
+    fetch('/api/fetch/' + encodeURIComponent(ticker))
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || data.status !== 'ok' || ticker !== _cdcTicker) return;
+            var d = data.data || {};
+            _cdcRenderPrice(ticker, d);
+            _cdcShowCard();
+        })
+        .catch(function() { /* silent */ });
+}
+
+function _cdcFetchSignal(ticker) {
+    // Check localStorage cache first
+    try {
+        var cached = localStorage.getItem(CDC_CACHE_KEY_PREFIX + ticker);
+        if (cached) {
+            var obj = JSON.parse(cached);
+            if (obj && obj._ts && (Date.now() - obj._ts) < CDC_CACHE_TTL_MS) {
+                _cdcRenderSignal(ticker, obj);
+                return;
+            }
+        }
+    } catch(e) { /* ignore */ }
+
+    // Call analyze API with auto_fetch=true but non-blocking
+    fetch('/api/analyze/' + encodeURIComponent(ticker) + '?auto_fetch=true')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || data.status !== 'ok' || ticker !== _cdcTicker) return;
+            var consensus = data.consensus || {};
+            var cacheObj = {
+                _ts: Date.now(),
+                signal: consensus.signal || '',
+                score: consensus.score || 0,
+                confidence: consensus.confidence || 0,
+            };
+            try { localStorage.setItem(CDC_CACHE_KEY_PREFIX + ticker, JSON.stringify(cacheObj)); } catch(e) {}
+            _cdcRenderSignal(ticker, cacheObj);
+        })
+        .catch(function() { /* silent */ });
+}
+
+function _cdcRenderPrice(ticker, d) {
+    var priceEl = document.getElementById('cdc-price');
+    var tickerEl = document.getElementById('cdc-ticker');
+    if (!priceEl || !tickerEl) return;
+
+    var price = d.price || 0;
+    var changePct = d.change_pct || 0;  // fraction, e.g. 0.0234
+    var companyName = d.company_name || '';
+    var currency = d.currency || '';
+
+    tickerEl.textContent = ticker + (companyName ? '  ' + companyName : '');
+
+    var pctDisplay = (changePct * 100).toFixed(2);
+    var sign = changePct >= 0 ? '+' : '';
+    var cls = changePct >= 0 ? 'up' : 'down';
+    var currencySymbol = currency === 'USD' ? '$' : (currency ? currency + ' ' : '');
+    var priceStr = price > 0 ? (currencySymbol + price.toFixed(2)) : '--';
+
+    priceEl.innerHTML = priceStr + '<span class="price-change ' + cls + '">' + sign + pctDisplay + '%</span>';
+}
+
+function _cdcRenderSignal(ticker, obj) {
+    var signalEl = document.getElementById('cdc-signal');
+    if (!signalEl || ticker !== _cdcTicker) return;
+    var signal = (obj.signal || '').toLowerCase();
+    var score = parseFloat(obj.score || 0).toFixed(1);
+    if (!signal || signal === 'error') { signalEl.textContent = ''; signalEl.className = 'cdc-signal'; return; }
+    signalEl.textContent = signal.toUpperCase() + ' ' + score;
+    signalEl.className = 'cdc-signal ' + signal;
+}
+
+function _cdcShowCard() {
+    var card = document.getElementById('chat-data-card');
+    var updEl = document.getElementById('cdc-updated');
+    if (!card) return;
+    card.style.display = 'flex';
+    if (updEl) updEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+// Auto-load if ticker input has a value (page reload with pre-filled input)
+document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('chat-ticker-input');
+    if (input && input.value.trim()) {
+        loadChatDataCard(input.value.trim().toUpperCase());
+    }
+});
+
+function _showChatActionBtns() {
+    var exp = document.getElementById('chat-export-btn');
+    var clr = document.getElementById('chat-clear-btn');
+    if (exp) exp.style.display = '';
+    if (clr) clr.style.display = '';
+}
+
+function clearChat() {
+    var messagesEl = document.getElementById('chat-messages');
+    messagesEl.innerHTML = '<div class="chat-msg system" role="status" id="chat-welcome-msg">' +
+        '<p class="oracle-welcome">Welcome to the HD-2D Oracle Hall.</p>' +
+        '<p style="font-size:0.85rem;color:var(--text-secondary);margin-top:0.5rem;">The masters await your inquiry. Select a persona and ask your questions.</p>' +
+        '</div>';
+    _chatHistory = [];
+    var exp = document.getElementById('chat-export-btn');
+    var clr = document.getElementById('chat-clear-btn');
+    if (exp) exp.style.display = 'none';
+    if (clr) clr.style.display = 'none';
+}
+
+function exportChatMD() {
+    if (!_chatHistory.length) return;
+    var ticker = (document.getElementById('chat-ticker-input') || {}).value || '';
+    var date = new Date().toISOString().slice(0, 10);
+    var lines = ['# Augur Chat' + (ticker ? ' — ' + ticker.toUpperCase() : '') + ' (' + date + ')', ''];
+    _chatHistory.forEach(function(m) {
+        if (m.role === 'user') {
+            lines.push('**You:** ' + m.text, '');
+        } else {
+            lines.push('**' + m.agent + ':** ' + m.text, '');
+        }
+    });
+    var blob = new Blob([lines.join('\n')], {type: 'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'augur-chat-' + (ticker ? ticker.toUpperCase() + '-' : '') + date + '.md';
+    a.click();
+}
+</script>
+{% endblock %}

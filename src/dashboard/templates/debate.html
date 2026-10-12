@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}辩论模式 - Augur{% endblock %}
+{% block extra_head %}
+<style>
+.debate-agent-select {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.debate-agent-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.debate-agent-chip:hover {
+    border-color: var(--accent-orange);
+    background: var(--bg-card-hover);
+}
+.debate-agent-chip.selected {
+    border-color: var(--accent-orange);
+    background: var(--amber-wash, rgba(255,140,0,0.12));
+    color: var(--accent-orange);
+}
+.debate-agent-chip input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+.debate-agent-chip input:focus-visible + span,
+.debate-agent-chip:has(input:focus-visible) {
+    outline: 2px solid var(--accent-orange);
+    outline-offset: 2px;
+}
+#debate-thread { min-height: 200px; }
+</style>
+{% endblock %}
+{% block content %}
+
+<header class="page-header mb-16">
+    <div class="page-header__text">
+        <h1 class="page-title" data-i18n="debate-title">辩论模式</h1>
+        <p class="page-lead" data-i18n="debate-desc">选择 2-4 位投资大师，围绕同一标的进行多轮辩论，每位大师对前者观点进行反驳</p>
+    </div>
+</header>
+
+<div class="card mb-24">
+    <div class="flex items-center gap-12 mb-16" style="flex-wrap:wrap;">
+        <div style="flex:1; min-width:180px; max-width:240px;">
+            <label class="data-label mb-4" for="debate-ticker" data-i18n="debate-ticker-label">股票代码</label>
+            <input id="debate-ticker" type="text" class="form-input" style="font-family:var(--font-data); font-size:1.1rem; font-weight:700; text-transform:uppercase;" placeholder="AAPL" aria-required="true" autocomplete="off">
+        </div>
+        <div style="align-self:flex-end;">
+            <button type="button" class="btn btn-primary" onclick="startDebate()" id="debate-btn" style="padding:10px 24px;" disabled data-i18n="debate-start">开始辩论</button>
+        </div>
+    </div>
+
+    <div>
+        <span class="data-label mb-8" id="debate-agents-label" data-i18n="debate-agents-label">选择辩手 (2-4 位)</span>
+        <div class="debate-agent-select" id="debate-agents" role="group" aria-labelledby="debate-agents-label">
+            {% for p in personas %}
+            <label class="debate-agent-chip" onclick="toggleDebateAgent(this)">
+                <input type="checkbox" value="{{ p.id }}" name="debate_agents">
+                <span>{{ p.name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        <div class="select-count agent-counter insufficient" id="debate-select-count" data-i18n="debate-initial-select">2-4 位 (已选 0)</div>
+    </div>
+</div>
+
+<!-- Spinner -->
+<div id="debate-spinner" style="display:none; text-align:center; padding:40px;" role="status" aria-live="polite" aria-busy="true">
+    <div class="spinner" style="margin:0 auto;" aria-hidden="true"></div>
+    <p class="loading-pulse text-orange text-mono mt-16" style="font-size:0.88rem;" data-i18n="debate-loading">辩论进行中...</p>
+</div>
+
+<!-- Error Panel -->
+<div id="debate-error" class="error-panel mb-16" style="display:none;" role="alert">
+    <div class="error-panel-title"><span class="error-panel-icon" aria-hidden="true">&#x26A0;</span><span data-i18n="debate-error-title">辩论失败</span></div>
+    <div class="error-panel-msg" id="debate-error-msg"></div>
+    <div class="error-panel-retry">
+        <button type="button" class="btn btn-sm" onclick="startDebate()" data-i18n="debate-retry">重试</button>
+    </div>
+</div>
+
+<!-- Empty State -->
+<div id="debate-empty" class="empty-state card">
+    <span class="empty-state-icon" aria-hidden="true">&#x1F4AC;</span>
+    <div class="empty-state-title" data-i18n="debate-empty-title">选择辩手开始辩论</div>
+    <p class="empty-state-desc" data-i18n="debate-empty-desc">选择 2-4 位投资大师，围绕同一标的进行多轮观点交锋与反驳</p>
+    <div class="empty-state-action">
+        <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('debate-ticker').focus()" data-i18n="debate-empty-cta">输入股票代码</button>
+        <a href="/compare" class="btn btn-sm btn-ghost" style="text-decoration:none;" data-i18n="debate-empty-compare">先去对比分析</a>
+    </div>
+</div>
+
+<!-- Debate Actions (shown after debate loads) -->
+<div id="debate-actions" style="display:none; margin-bottom:12px; display:flex; gap:8px; justify-content:flex-end;">
+    <button type="button" class="btn btn-sm btn-ghost" onclick="copyDebateTranscript()" data-i18n="debate-copy-transcript">复制记录</button>
+    <button type="button" class="btn btn-sm btn-ghost" onclick="downloadDebateMD()" data-i18n="debate-download-md">下载 MD</button>
+</div>
+
+<!-- Debate Thread -->
+<div id="debate-thread"></div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+function _t(key, fb) { return (typeof window.t === 'function') ? window.t(key, fb) : (fb || key); }
+
+var _debateData = null;
+
+function toggleDebateAgent(label) {
+    var cb = label.querySelector('input[type="checkbox"]');
+    var allChecked = document.querySelectorAll('#debate-agents input:checked');
+    if (!cb.checked && allChecked.length >= 4) {
+        cb.checked = false;
+        showToast(_t('debate-max-agents'), 'warning');
+        return;
+    }
+    setTimeout(function() {
+        var checked = document.querySelectorAll('#debate-agents input:checked');
+        var count = checked.length;
+        var countEl = document.getElementById('debate-select-count');
+        countEl.textContent = _t('debate-select-count').replace('{n}', count);
+        if (count >= 2 && count <= 4) {
+            countEl.className = 'select-count agent-counter ready';
+        } else {
+            countEl.className = 'select-count agent-counter insufficient';
+        }
+        document.querySelectorAll('.debate-agent-chip').forEach(function(chip) {
+            var c = chip.querySelector('input');
+            if (c.checked) chip.classList.add('selected');
+            else chip.classList.remove('selected');
+        });
+        validateDebateForm();
+    }, 10);
+}
+
+function validateDebateForm() {
+    var ticker = document.getElementById('debate-ticker').value.trim();
+    var checked = document.querySelectorAll('#debate-agents input:checked');
+    var btn = document.getElementById('debate-btn');
+    if (ticker.length > 0 && checked.length >= 2 && checked.length <= 4) {
+        btn.disabled = false;
+    } else {
+        btn.disabled = true;
+    }
+}
+
+// Real-time validation on ticker input
+document.addEventListener('DOMContentLoaded', function() {
+    var tickerInput = document.getElementById('debate-ticker');
+    tickerInput.addEventListener('input', validateDebateForm);
+    tickerInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); startDebate(); }
+    });
+    applyDebateQueryParams();
+    validateDebateForm();
+});
+
+function applyDebateQueryParams() {
+    var params = new URLSearchParams(window.location.search);
+    var ticker = params.get('ticker');
+    var agents = params.get('agents');
+    if (ticker) {
+        document.getElementById('debate-ticker').value = ticker.toUpperCase();
+    }
+    if (agents) {
+        var ids = agents.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+        document.querySelectorAll('#debate-agents input[type="checkbox"]').forEach(function(cb) {
+            cb.checked = ids.indexOf(cb.value) !== -1;
+            var chip = cb.closest('.debate-agent-chip');
+            if (chip) {
+                if (cb.checked) chip.classList.add('selected');
+                else chip.classList.remove('selected');
+            }
+        });
+        var count = document.querySelectorAll('#debate-agents input:checked').length;
+        var countEl = document.getElementById('debate-select-count');
+        countEl.textContent = _t('debate-select-count').replace('{n}', count);
+        countEl.className = 'select-count agent-counter ' + (count >= 2 && count <= 4 ? 'ready' : 'insufficient');
+    }
+    validateDebateForm();
+    if (ticker) showToast(_t('debate-url-loaded'));
+}
+
+function startDebate() {
+    var ticker = document.getElementById('debate-ticker').value.trim().toUpperCase();
+    if (!ticker) { showToast(_t('msg-enter-ticker'), 'warning'); return; }
+
+    var checked = document.querySelectorAll('#debate-agents input:checked');
+    var agentIds = [];
+    checked.forEach(function(cb) { agentIds.push(cb.value); });
+
+    if (agentIds.length < 2) { showToast(_t('debate-min-agents'), 'warning'); return; }
+    if (agentIds.length > 4) { showToast(_t('debate-max-agents'), 'warning'); return; }
+
+    var btn = document.getElementById('debate-btn');
+    btn.disabled = true;
+    btn.textContent = _t('debate-in-progress');
+    btn.setAttribute('aria-busy', 'true');
+    document.getElementById('debate-spinner').style.display = 'block';
+    document.getElementById('debate-thread').innerHTML = '';
+    document.getElementById('debate-error').style.display = 'none';
+    document.getElementById('debate-empty').style.display = 'none';
+
+    fetch('/api/debate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker: ticker, agent_ids: agentIds })
+    })
+    .then(function(r) {
+        if (!r.ok) {
+            return r.json().then(function(err) {
+                throw new Error(err.detail || err.message || _t('debate-api-error'));
+            }).catch(function() {
+                throw new Error(_t('debate-api-error'));
+            });
+        }
+        return r.json();
+    })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.textContent = _t('debate-start');
+        btn.setAttribute('aria-busy', 'false');
+        document.getElementById('debate-spinner').style.display = 'none';
+        renderDebate(data);
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = _t('debate-start');
+        btn.setAttribute('aria-busy', 'false');
+        document.getElementById('debate-spinner').style.display = 'none';
+        document.getElementById('debate-error').style.display = 'block';
+        document.getElementById('debate-empty').style.display = 'block';
+        document.getElementById('debate-error-msg').textContent = err.message || String(err);
+    });
+}
+
+function signalBadgeClass(s) {
+    var m = {'bullish':'signal-badge-buy','neutral':'signal-badge-neutral','bearish':'signal-badge-sell'};
+    return m[(s||'').toLowerCase()] || 'signal-badge-neutral';
+}
+function signalLabel(s) {
+    var m = {'bullish':'BUY','neutral':'HOLD','bearish':'SELL'};
+    return m[(s||'').toLowerCase()] || s;
+}
+
+function renderDebate(data) {
+    _debateData = data;
+    var actionsEl = document.getElementById('debate-actions');
+    if (actionsEl) actionsEl.style.display = 'flex';
+    var thread = document.getElementById('debate-thread');
+    thread.innerHTML = '';
+    var rounds = data.rounds || [];
+
+    rounds.forEach(function(round, idx) {
+        var isRebuttal = idx > 0;
+        var card = document.createElement('div');
+        card.className = 'debate-card' + (isRebuttal ? ' rebuttal' : '');
+        card.style.animationDelay = (idx * 0.15) + 's';
+
+        var reasoning = (round.reasoning || '').replace(/#+\s*/g, '').replace(/\*\*/g, '');
+        card.innerHTML = '<div class="debate-card-header">' +
+            '<span class="debate-card-agent">' + (round.agent_name || round.agent_id) + '</span>' +
+            '<span class="signal-badge ' + signalBadgeClass(round.signal) + '" style="font-size:0.7rem;">' + signalLabel(round.signal) + ' ' + (round.score || 0).toFixed(1) + '/10</span>' +
+            '</div>' +
+            '<div class="debate-card-content">' + reasoning + '</div>';
+        thread.appendChild(card);
+    });
+
+    if (data.summary) {
+        var summaryCard = document.createElement('div');
+        summaryCard.className = 'card mt-16';
+        summaryCard.style.borderLeft = '3px solid var(--accent-orange)';
+        summaryCard.innerHTML = '<div class="data-label mb-8">' + escapeHtml(_t('debate-summary')) + '</div>' +
+            '<p class="text-muted" style="font-size:0.82rem; line-height:1.6;">' + data.summary + '</p>';
+        thread.appendChild(summaryCard);
+    }
+}
+
+function _buildDebateMarkdown() {
+    if (!_debateData) return '';
+    var ticker = document.getElementById('debate-ticker').value.trim().toUpperCase() || 'Unknown';
+    var date = new Date().toISOString().slice(0, 10);
+    var lines = ['# Augur Debate — ' + ticker + ' (' + date + ')', ''];
+    (_debateData.rounds || []).forEach(function(round, idx) {
+        var agent = round.agent_name || round.agent_id;
+        var signal = (round.signal || 'neutral').toUpperCase();
+        var score = Number(round.score || 0).toFixed(1);
+        var reasoning = (round.reasoning || '').replace(/\*\*/g, '**').trim();
+        lines.push('## ' + (idx + 1) + '. ' + agent + ' — ' + signal + ' ' + score + '/10');
+        lines.push('');
+        lines.push(reasoning);
+        lines.push('');
+    });
+    if (_debateData.summary) {
+        lines.push('## Summary', '', _debateData.summary, '');
+    }
+    return lines.join('\n');
+}
+
+function copyDebateTranscript() {
+    var md = _buildDebateMarkdown();
+    if (!md) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(md).then(function() {
+            showToast(_t('debate-copied'), 'success');
+        }).catch(function() { _fallbackCopy(md); });
+    } else { _fallbackCopy(md); }
+}
+
+function _fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToast(_t('debate-copied'), 'success'); } catch(e) {}
+    document.body.removeChild(ta);
+}
+
+function downloadDebateMD() {
+    var md = _buildDebateMarkdown();
+    if (!md) return;
+    var ticker = document.getElementById('debate-ticker').value.trim().toUpperCase() || 'debate';
+    var fname = 'augur-debate-' + ticker + '-' + new Date().toISOString().slice(0,10) + '.md';
+    var blob = new Blob([md], {type: 'text/markdown'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    a.click();
+    showToast(_t('debate-downloaded'), 'success');
+}
+</script>
+{% endblock %}

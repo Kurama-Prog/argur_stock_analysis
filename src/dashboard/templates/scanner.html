@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% block title %}Scanner - Augur{% endblock %}
+{% block extra_head %}
+<style>
+/* Scanner-specific styles */
+.scanner-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.preset-chip { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 8px 16px; cursor: pointer; color: var(--text-primary); font-size: 0.82rem; transition: all 0.15s; }
+.preset-chip:hover, .preset-chip.active { border-color: var(--accent-orange); color: var(--accent-orange); }
+.scanner-input { width: 100%; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; color: var(--text-primary); font-family: var(--font-data); font-size: 0.85rem; min-height: 60px; resize: vertical; }
+.scanner-input:focus { outline: none; border-color: var(--accent-orange); }
+.heatmap-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; overflow-x: auto; display: block; }
+.heatmap-table th, .heatmap-table td { padding: 6px 4px; text-align: center; border: 1px solid var(--border-color); white-space: nowrap; }
+.heatmap-table th { background: var(--bg-secondary); color: var(--text-muted); font-weight: 500; position: sticky; top: 0; }
+.heatmap-table .ticker-col { text-align: left; font-weight: 600; color: var(--accent-orange); min-width: 70px; position: sticky; left: 0; background: var(--bg-card); z-index: 1; }
+.heatmap-cell { border-radius: 3px; padding: 4px 6px; font-weight: 600; font-family: var(--font-data); }
+.heatmap-cell.bullish { background: rgba(0,200,100,0.2); color: var(--signal-buy); }
+.heatmap-cell.neutral { background: rgba(255,200,0,0.15); color: var(--signal-neutral); }
+.heatmap-cell.bearish { background: rgba(255,60,60,0.2); color: var(--signal-sell); }
+.consensus-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-weight: 700; font-size: 0.7rem; }
+.consensus-badge.bullish { background: var(--signal-buy); color: var(--bg-void); }
+.consensus-badge.neutral { background: var(--signal-neutral); color: var(--bg-void); }
+.consensus-badge.bearish { background: var(--signal-sell); color: var(--fg-1); }
+.consensus-badge.error { background: var(--signal-sell); color: var(--fg-1); opacity: 0.85; }
+.heatmap-cell.error { background: rgba(255,60,60,0.15); color: var(--signal-sell); }
+</style>
+{% endblock %}
+{% block content %}
+<header class="page-header mb-16">
+    <div class="page-header__text">
+        <h1 class="page-title" data-i18n="scanner_title">市场扫描器</h1>
+        <p class="page-lead" data-i18n="scanner_desc">选择预设列表或输入自定义股票代码，一键让18位大师快速评分</p>
+    </div>
+</header>
+
+<!-- Preset buttons -->
+<div class="scanner-presets" role="group" aria-label="Scanner presets">
+    <button type="button" class="preset-chip" onclick="loadPreset('tech_giants', this)" data-i18n="scanner_preset_tech">科技巨头</button>
+    <button type="button" class="preset-chip" onclick="loadPreset('china_stocks', this)" data-i18n="scanner_preset_china">中概股</button>
+    <button type="button" class="preset-chip" onclick="loadPreset('crypto', this)" data-i18n="scanner_preset_crypto">加密货币</button>
+</div>
+
+<!-- Custom input -->
+<div class="card mb-16" style="padding:16px;">
+    <label class="data-label" for="scanner-tickers" data-i18n="scanner_custom_label">自定义标的 (逗号分隔)</label>
+    <textarea class="scanner-input" id="scanner-tickers" placeholder="AAPL, NVDA, TSLA, BTC-USD" aria-describedby="scanner-limit-hint" oninput="updateScannerCount()"></textarea>
+    <div class="flex items-center justify-between mt-12">
+        <span id="scanner-limit-hint" class="text-muted" style="font-size:0.72rem;" data-i18n="scanner_limit">最多20个标的</span>
+        <button type="button" class="btn btn-primary" onclick="runScanner()" id="scanner-run-btn" data-i18n="scanner_run">开始扫描</button>
+    </div>
+</div>
+
+<!-- Idle empty state -->
+<div id="scanner-idle" class="empty-state card mb-16">
+    <span class="empty-state-icon" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="22" cy="22" r="14"/><path d="M32 32l12 12"/><path d="M15 19h14M15 22h14M15 25h10"/></svg></span>
+    <div class="empty-state-title" data-i18n="scanner-empty-title">选择预设或输入代码开始扫描</div>
+    <p class="empty-state-desc" data-i18n="scanner-empty-desc">18 位大师将对每个标的独立评分，生成共识热力图</p>
+</div>
+
+<!-- Loading -->
+<div id="scanner-loading" style="display:none;" class="mb-16">
+    <p class="loading-pulse text-orange text-mono" id="scanner-progress" data-i18n="scanner-loading">正在扫描...</p>
+</div>
+
+<!-- Results -->
+<div id="scanner-results" style="display:none;">
+    <div class="flex items-center justify-between mb-12">
+        <div class="section-title compact" data-i18n="scanner_results_title">扫描结果</div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <span class="text-muted" style="font-size:0.72rem;" id="scanner-summary"></span>
+            <button type="button" class="btn btn-sm" onclick="exportScannerCSV()" data-i18n="scanner-export-csv">导出 CSV</button>
+        </div>
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div style="overflow-x:auto;">
+            <table class="heatmap-table" id="heatmap-table"></table>
+        </div>
+    </div>
+</div>
+
+<!-- Error -->
+<div id="scanner-error" class="error-panel" style="display:none;" role="alert" aria-live="polite">
+    <div class="error-panel-title" data-i18n="scanner-error-title">扫描失败</div>
+    <div class="error-panel-msg" id="scanner-error-msg"></div>
+    <div class="error-panel-retry">
+        <button class="btn btn-sm" onclick="runScanner()" data-i18n="btn-retry">重试</button>
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+var PRESETS = {
+    tech_giants: ['AAPL','NVDA','MSFT','GOOGL','TSLA','META','AMZN','AMD'],
+    china_stocks: ['BABA','PDD','JD','BIDU','NIO','LI','XPEV'],
+    crypto: ['BTC-USD','ETH-USD','SOL-USD','DOGE-USD']
+};
+
+function _t(key, fb) { return (typeof window.t === 'function') ? window.t(key, fb) : (fb || key); }
+
+// Agent short names for table headers
+var AGENT_SHORT = {
+    buffett:'BUF', graham:'GRA', munger:'MUN', fisher:'FIS', lynch:'LYN',
+    cathie_wood:'CW', aschenbrenner:'ASC', thiel:'THI', dalio:'DAL',
+    soros:'SOR', marks:'MAR', serenity:'SER', arps:'ARP', dayu:'DYU',
+    duan_yongping:'DYP', zhang_lei:'ZHL', li_lu:'LIL', dan_bin:'DAB'
+};
+
+var TICKER_RE = /^[A-Za-z0-9.\-]{1,15}$/;
+var _scanResults = [];
+
+function parseTickers(text) {
+    var seen = {};
+    var out = [];
+    text.split(/[,\s\n]+/).forEach(function(raw) {
+        var t = (raw || '').trim().toUpperCase();
+        if (!t || seen[t]) return;
+        seen[t] = true;
+        out.push(t);
+    });
+    return out;
+}
+
+function countTickers(text) {
+    return parseTickers(text).length;
+}
+
+function updateScannerCount() {
+    var ta = document.getElementById('scanner-tickers');
+    var hint = document.getElementById('scanner-limit-hint');
+    var runBtn = document.getElementById('scanner-run-btn');
+    if (!ta || !hint) return;
+    var n = countTickers((ta.value || '').trim());
+    if (n > 0) {
+        hint.textContent = _t('scanner-count-hint').replace('{n}', n);
+        hint.style.color = n > 20 ? 'var(--signal-sell)' : 'var(--text-muted)';
+    } else {
+        hint.textContent = _t('scanner_limit');
+        hint.style.color = 'var(--text-muted)';
+    }
+    if (runBtn) runBtn.disabled = n === 0 || n > 20;
+    if (ta) ta.style.borderColor = n > 20 ? 'var(--signal-sell)' : '';
+}
+
+function loadPreset(name, chipEl) {
+    var ta = document.getElementById('scanner-tickers');
+    if (ta && PRESETS[name]) {
+        ta.value = PRESETS[name].join(', ');
+        updateScannerCount();
+    }
+    document.querySelectorAll('.preset-chip').forEach(function(el) { el.classList.remove('active'); });
+    if (chipEl) chipEl.classList.add('active');
+}
+
+function runScanner() {
+    var ta = document.getElementById('scanner-tickers');
+    var text = (ta ? ta.value : '').trim();
+    if (!text) {
+        showToast(_t('scanner-enter-tickers'), 'warning');
+        if (ta) { ta.focus(); ta.style.borderColor = 'var(--signal-sell)'; }
+        return;
+    }
+    var tickers = parseTickers(text);
+    if (tickers.length === 0) {
+        showToast(_t('scanner-enter-tickers'), 'warning');
+        if (ta) { ta.focus(); ta.style.borderColor = 'var(--signal-sell)'; }
+        return;
+    }
+    if (tickers.length > 20) {
+        showToast(_t('scanner-max-warning'), 'warning');
+        if (ta) { ta.focus(); ta.style.borderColor = 'var(--signal-sell)'; }
+        return;
+    }
+    for (var i = 0; i < tickers.length; i++) {
+        if (!TICKER_RE.test(tickers[i])) {
+            showToast(_t('scanner-invalid-ticker').replace('{ticker}', tickers[i]), 'warning');
+            if (ta) { ta.focus(); ta.style.borderColor = 'var(--signal-sell)'; }
+            return;
+        }
+    }
+    if (ta) {
+        ta.value = tickers.join(', ');
+        ta.style.borderColor = '';
+    }
+
+    var runBtn = document.getElementById('scanner-run-btn');
+    if (runBtn) runBtn.disabled = true;
+
+    document.getElementById('scanner-idle').style.display = 'none';
+    document.getElementById('scanner-loading').style.display = 'block';
+    document.getElementById('scanner-results').style.display = 'none';
+    document.getElementById('scanner-error').style.display = 'none';
+    startProgress('scanner-progress', {stages:[
+        _t('scanner-stage-fetch'),
+        _t('scanner-stage-score'),
+        _t('scanner-stage-summary')
+    ]});
+
+    fetchWithTimeout('/api/scanner/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tickers: tickers})
+    }, 180000)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        stopProgress('scanner-progress');
+        document.getElementById('scanner-loading').style.display = 'none';
+        updateScannerCount();
+        if (data.status === 'ok') {
+            var results = data.results || [];
+            var okRows = results.filter(function(r) { return r.consensus_signal !== 'error'; });
+            var errRows = results.length - okRows.length;
+            if (okRows.length === 0) {
+                document.getElementById('scanner-error').style.display = 'block';
+                document.getElementById('scanner-error-msg').textContent = _t('scanner-all-failed');
+                showToast(_t('scanner-all-failed'), 'error');
+                return;
+            }
+            renderHeatmap(results);
+            if (errRows > 0) {
+                showToast(_t('scanner-partial-errors').replace('{n}', errRows), 'warning');
+            }
+        } else {
+            document.getElementById('scanner-error').style.display = 'block';
+            var errMsg = data.detail || _t('scanner-error-title');
+            document.getElementById('scanner-error-msg').textContent = errMsg;
+            showToast(errMsg, 'error');
+        }
+    })
+    .catch(function(err) {
+        stopProgress('scanner-progress');
+        document.getElementById('scanner-loading').style.display = 'none';
+        updateScannerCount();
+        var msg = (err && err.name === 'AbortError')
+            ? _t('scanner-timeout')
+            : (err.message || _t('hero-error-request', 'Request failed'));
+        document.getElementById('scanner-error').style.display = 'block';
+        document.getElementById('scanner-error-msg').textContent = msg;
+        showToast(msg, 'error');
+    });
+}
+
+function exportScannerCSV() {
+    if (!_scanResults.length) { showToast(_t('scanner-enter-tickers'), 'warning'); return; }
+    var agentIds = [];
+    for (var ri = 0; ri < _scanResults.length; ri++) {
+        if (_scanResults[ri].consensus_signal !== 'error' && _scanResults[ri].agents && _scanResults[ri].agents.length) {
+            agentIds = _scanResults[ri].agents.map(function(a) { return a.agent_id; });
+            break;
+        }
+    }
+    var header = '﻿' + ['Ticker', 'Consensus', 'Score'].concat(agentIds).join(',');
+    var rows = [header];
+    _scanResults.forEach(function(row) {
+        if (row.consensus_signal === 'error') {
+            rows.push([row.ticker, 'error', ''].join(','));
+            return;
+        }
+        var agentMap = {};
+        (row.agents || []).forEach(function(a) { agentMap[a.agent_id] = a; });
+        var cols = [row.ticker, row.consensus_signal || 'neutral', Number(row.consensus_score || 0).toFixed(1)];
+        agentIds.forEach(function(id) {
+            var a = agentMap[id];
+            cols.push(a ? Number(a.score || 0).toFixed(1) : '');
+        });
+        rows.push(cols.join(','));
+    });
+    var fname = 'augur-scanner-' + new Date().toISOString().slice(0,10) + '.csv';
+    var blob = new Blob([rows.join('\n')], {type: 'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    a.click();
+    showToast(_t('scanner-exported'), 'success');
+}
+
+function addToWatchlistFromScanner(ticker) {
+    fetch('/api/watchlist/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ticker: ticker})
+    }).then(function(r) {
+        if (r.ok) {
+            showToast(ticker + ' ' + _t('scanner-added-watchlist', '已加入自选股'), 'success');
+        } else {
+            r.json().then(function(d) {
+                showToast((d && d.detail) ? d.detail : _t('scanner-watchlist-error', '添加失败'), 'error');
+            });
+        }
+    }).catch(function() {
+        showToast(_t('scanner-watchlist-error', '添加失败'), 'error');
+    });
+}
+
+function renderHeatmap(results) {
+    var table = document.getElementById('heatmap-table');
+    if (!table || !results || !results.length) {
+        document.getElementById('scanner-idle').style.display = 'block';
+        return;
+    }
+    _scanResults = results;
+    document.getElementById('scanner-results').style.display = 'block';
+
+    var agentIds = [];
+    for (var ri = 0; ri < results.length; ri++) {
+        if (results[ri].consensus_signal === 'error') continue;
+        if (results[ri].agents && results[ri].agents.length) {
+            agentIds = results[ri].agents.map(function(a) { return a.agent_id; });
+            break;
+        }
+    }
+
+    var html = '<thead><tr><th class="ticker-col">Ticker</th><th>Consensus</th>';
+    agentIds.forEach(function(id) {
+        html += '<th title="' + escapeHtml(id) + '">' + (AGENT_SHORT[id] || id.substr(0,3).toUpperCase()) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    results.forEach(function(row) {
+        var isError = row.consensus_signal === 'error';
+        var consCls = isError ? 'error' : (row.consensus_signal || 'neutral').toLowerCase();
+        html += '<tr>';
+        html += '<td class="ticker-col" style="white-space:nowrap;">' + escapeHtml(row.ticker) + ' <button type="button" onclick="addToWatchlistFromScanner(\'' + escapeHtml(row.ticker) + '\')" title="' + _t('scanner-add-watchlist','加入自选股') + '" style="background:none;border:1px solid var(--border-color,#333);border-radius:4px;color:var(--text-muted);font-size:0.75rem;padding:1px 5px;cursor:pointer;vertical-align:middle;line-height:1.2;" onmouseover="this.style.color=\'var(--accent,#d4a017)\';this.style.borderColor=\'var(--accent,#d4a017)\'" onmouseout="this.style.color=\'var(--text-muted)\';this.style.borderColor=\'var(--border-color,#333)\'">+</button></td>';
+        if (isError) {
+            var errDetail = (row.error && row.error.detail) ? row.error.detail : _t('scanner-error-row');
+            html += '<td colspan="' + (agentIds.length + 1) + '"><span class="consensus-badge error">' + escapeHtml(_t('scanner-error-row')) + '</span> <span class="text-muted" style="font-size:0.7rem;">' + escapeHtml(errDetail) + '</span></td>';
+        } else {
+            html += '<td><span class="consensus-badge ' + consCls + '">' + Number(row.consensus_score).toFixed(1) + '</span></td>';
+            var agentMap = {};
+            (row.agents || []).forEach(function(a) { agentMap[a.agent_id] = a; });
+            agentIds.forEach(function(id) {
+                var a = agentMap[id];
+                if (a) {
+                    var score = (typeof a.score === 'number') ? a.score : 0;
+                    var cls = a.signal === 'bullish' ? 'bullish' : a.signal === 'bearish' ? 'bearish' : 'neutral';
+                    html += '<td><span class="heatmap-cell ' + cls + '">' + score.toFixed(1) + '</span></td>';
+                } else {
+                    html += '<td>-</td>';
+                }
+            });
+        }
+        html += '</tr>';
+    });
+    html += '</tbody>';
+    table.innerHTML = html;
+
+    var okRows = results.filter(function(r) { return r.consensus_signal !== 'error'; });
+    var bullish = okRows.filter(function(r) { return r.consensus_signal === 'bullish'; }).length;
+    var bearish = okRows.filter(function(r) { return r.consensus_signal === 'bearish'; }).length;
+    var neutral = okRows.length - bullish - bearish;
+    var summaryTpl = _t('scanner-summary');
+    document.getElementById('scanner-summary').textContent = summaryTpl
+        .replace('{n}', okRows.length)
+        .replace('{bull}', bullish)
+        .replace('{neutral}', neutral)
+        .replace('{bear}', bearish);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateScannerCount();
+});
+</script>
+{% endblock %}

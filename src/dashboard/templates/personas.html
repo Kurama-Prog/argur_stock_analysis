@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block title %}投资人系统 - Augur{% endblock %}
+{% block extra_head %}
+<style>
+.persona-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+.persona-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    border-color: var(--accent-orange);
+}
+.persona-card .card-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    padding-top: 0;
+}
+.persona-card.expanded .card-detail {
+    max-height: 800px;
+    opacity: 1;
+    padding-top: 14px;
+}
+.persona-card .expand-icon {
+    transition: transform 0.3s;
+    color: var(--text-muted);
+}
+.persona-card.expanded .expand-icon {
+    transform: rotate(180deg);
+    color: var(--accent-orange);
+}
+.school-badge {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.school-badge.value { background: rgba(0,200,83,0.12); color: var(--signal-buy); border: 1px solid rgba(0,200,83,0.25); }
+.school-badge.growth { background: rgba(79,195,247,0.12); color: var(--accent-blue, #4fc3f7); border: 1px solid rgba(79,195,247,0.25); }
+.school-badge.macro { background: rgba(168,85,247,0.12); color: #b066ff; border: 1px solid rgba(168,85,247,0.25); }
+.school-badge.quant { background: rgba(236,72,153,0.12); color: #ff66b2; border: 1px solid rgba(236,72,153,0.25); }
+.school-badge.china { background: rgba(255,23,68,0.12); color: var(--signal-sell); border: 1px solid rgba(255,23,68,0.25); }
+.holdings-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    padding: 1px 7px;
+    border-radius: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-family: var(--font-data);
+    margin: 2px 3px 2px 0;
+}
+.principle-list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+}
+.principle-list li {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    padding: 3px 0;
+    line-height: 1.5;
+}
+.principle-list li::before {
+    content: "\25B8";
+    color: var(--accent-orange);
+    margin-right: 6px;
+}
+/* Compare Section */
+.compare-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 24px;
+}
+.compare-section h3 {
+    color: var(--accent-orange);
+    margin: 0 0 14px;
+    font-size: 1rem;
+}
+.compare-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.compare-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.compare-form label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.compare-form select, .compare-form input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    min-width: 160px;
+}
+.compare-form select:focus, .compare-form input:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+}
+.compare-results {
+    margin-top: 16px;
+    display: none;
+}
+.compare-results.visible {
+    display: block;
+}
+.compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+}
+.compare-table th {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+.compare-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    vertical-align: top;
+}
+.compare-table .signal-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+.compare-table .signal-badge.bullish { background: rgba(0,200,83,0.12); color: var(--signal-buy); }
+.compare-table .signal-badge.bearish { background: rgba(255,23,68,0.12); color: var(--signal-sell); }
+.compare-table .signal-badge.neutral { background: rgba(255,214,0,0.12); color: var(--signal-neutral); }
+/* Ask Question Section */
+.ask-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+.ask-section .ask-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.ask-section input {
+    flex: 1;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    font-size: 0.76rem;
+}
+.ask-section input:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+}
+.ask-section button {
+    background: var(--accent-orange);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--bg-void);
+    padding: 6px 12px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.ask-section button:hover {
+    opacity: 0.9;
+}
+.ask-section button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.ask-response {
+    margin-top: 10px;
+    display: none;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+.ask-response.visible {
+    display: block;
+}
+.ask-response .signal-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    margin-right: 8px;
+}
+.ask-response .signal-badge.bullish { background: rgba(0,200,83,0.12); color: var(--signal-buy); }
+.ask-response .signal-badge.bearish { background: rgba(255,23,68,0.12); color: var(--signal-sell); }
+.ask-response .signal-badge.neutral { background: rgba(255,214,0,0.12); color: var(--signal-neutral); }
+.ask-response .reasoning-text {
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-top: 8px;
+}
+.ask-response .findings-list {
+    margin-top: 6px;
+    padding-left: 14px;
+}
+.ask-response .findings-list li {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<div style="padding-top:24px;">
+    <div class="council-hero gilt-edge mb-24">
+        <img src="/static/images/augur-owl-128.png" class="pixelated" width="64" height="64" alt="Owl"/>
+        <div>
+            <div class="t-eyebrow" style="color:var(--gilt);">▸ The Council of Masters</div>
+            <h1 class="page-title">Eighteen legends. One verdict.</h1>
+            <p class="page-lead" data-i18n="council-desc">Each master scores independently through their own framework. The council weights every voice into a single Kelly-sized consensus.</p>
+        </div>
+    </div>
+
+    <!-- Compare Two Masters Section (Kept from original but styled) -->
+    <div class="compare-section mb-24">
+        <h3>&#x2694; 大师对决 - Compare Two Masters</h3>
+        <div class="compare-form">
+            <div class="form-group">
+                <label>投资大师 1</label>
+                <select id="compare-persona1">
+                    {% for persona in personas %}
+                    <option value="{{ persona.id }}">{{ persona.cn_name }} ({{ persona.school }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>投资大师 2</label>
+                <select id="compare-persona2">
+                    {% for persona in personas %}
+                    <option value="{{ persona.id }}" {% if loop.index == 2 %}selected{% endif %}>{{ persona.cn_name }} ({{ persona.school }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>股票代码</label>
+                <input type="text" id="compare-ticker" placeholder="AAPL" value="AAPL" style="min-width:100px;">
+            </div>
+            <button class="pixel-btn dark" id="compare-btn" onclick="runComparison()">
+                ▶ 对比分析
+            </button>
+        </div>
+        <div class="compare-results" id="compare-results" role="region" aria-label="大师对比分析结果" aria-live="polite" aria-busy="false">
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th>维度</th>
+                        <th id="compare-name1">大师 1</th>
+                        <th id="compare-name2">大师 2</th>
+                    </tr>
+                </thead>
+                <tbody id="compare-tbody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- School Filter Buttons -->
+    <div class="filters">
+        <button class="filter-tag active school-filter-btn" data-school="all" onclick="filterBySchool('all', this)">All · {{ personas|length }}</button>
+        <button class="filter-tag school-filter-btn" data-school="value" onclick="filterBySchool('value', this)">◧ 价值 (Value)</button>
+        <button class="filter-tag school-filter-btn" data-school="growth" onclick="filterBySchool('growth', this)">▲ 成长 (Growth)</button>
+        <button class="filter-tag school-filter-btn" data-school="macro" onclick="filterBySchool('macro', this)">○ 宏观 (Macro)</button>
+        <button class="filter-tag school-filter-btn" data-school="quant" onclick="filterBySchool('quant', this)">◇ 量化 (Quant)</button>
+        <button class="filter-tag school-filter-btn" data-school="china" onclick="filterBySchool('china', this)">⊟ 中国 (China)</button>
+        
+        <label for="persona-search" class="sr-only" style="position:absolute;left:-9999px;">搜索大师</label>
+        <input id="persona-search" type="text" class="field mono" style="max-width:220px; margin-left:auto; padding:6px 12px; font-size:0.8rem;"
+               placeholder="Search master..." aria-label="搜索大师"
+               oninput="applyFilters()">
+    </div>
+
+    <!-- Card Grid -->
+    <div class="council-grid" id="persona-grid">
+        {% for persona in personas %}
+        {% set glyph = '◧' if persona.school == 'value' else ('▲' if persona.school == 'growth' else ('○' if persona.school == 'macro' else ('◇' if persona.school == 'quant' else '⊟'))) %}
+        {% set scolor = 'var(--signal-buy)' if persona.school == 'value' else ('var(--accent-blue, #4fc3f7)' if persona.school == 'growth' else ('#b066ff' if persona.school == 'macro' else ('#ff66b2' if persona.school == 'quant' else 'var(--signal-sell)'))) %}
+        <div class="mcard persona-card" role="button" tabindex="0" aria-label="查看 {{ persona.cn_name }} ({{ persona.en_name }}) 详情" data-school="{{ persona.school }}" data-name="{{ persona.cn_name|lower }}{{ persona.en_name|lower }}{{ persona.id }}" onclick="openMasterDetail('{{ persona.id }}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMasterDetail('{{ persona.id }}');}">
+            <div class="medallion">
+                <div class="disc">
+                    <img src="/static/images/avatars/{{ persona.id }}.png" alt="{{ persona.cn_name }}" onerror="this.src='/static/images/augur-owl-64.png'">
+                </div>
+                <div class="crest" style="color:{{ scolor }}; font-weight:bold;">{{ glyph }}</div>
+            </div>
+            <div class="mplate">{{ persona.en_name }}</div>
+            <div class="mzh" style="color:{{ scolor }};">{{ persona.cn_name }} · {{ persona.style }}</div>
+            <div class="mstats">
+                <span class="sc">--<small>/10</small></span>
+                <span class="conv text-muted">Ready</span>
+            </div>
+        </div>
+        
+        <!-- Hidden data for modal injection -->
+        <template id="tpl-{{ persona.id }}">
+            <div class="detail-medallion">
+                <div class="disc"><img src="/static/images/avatars/{{ persona.id }}.png" alt="{{ persona.cn_name }}" onerror="this.src='/static/images/augur-owl-64.png'"></div>
+                <div class="crest" style="color:{{ scolor }};">{{ glyph }}</div>
+            </div>
+            <div>
+                <div class="t-eyebrow" style="color:{{ scolor }}; font-weight:bold; font-size:0.75rem;">{{ glyph }} {{ persona.school|upper }}</div>
+                <div style="font:700 1.25rem/1.1 var(--font-pixfin);color:var(--fg-1);margin:8px 0 2px;">{{ persona.en_name }}</div>
+                <div style="font:600 0.8rem/1 var(--font-mono);color:var(--fg-3);">{{ persona.cn_name }}</div>
+            </div>
+            <div class="dialogue" style="margin-top:18px;">
+                <div class="speaker">
+                    <img src="/static/images/avatars/{{ persona.id }}.png" class="avatar" width="20" height="20" onerror="this.src='/static/images/augur-owl-64.png'"> {{ persona.cn_name }}
+                </div>
+                <div>&ldquo;{{ persona.description }}&rdquo;</div>
+                <span class="chevron">▼</span>
+            </div>
+            <div style="margin-top:16px;">
+                <div class="data-label" style="margin-bottom:4px;">Core Principles</div>
+                <ul class="principle-list" style="margin:0;">
+                    {% for p in persona.core_principles %}
+                    <li>{{ p }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:20px;">
+                <button class="pixel-btn" onclick="window.location.href='/stocks?persona={{ persona.id }}'">▶ Consult on a ticker</button>
+            </div>
+        </template>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Master Detail Overlay Modal -->
+<div class="overlay" id="master-detail-overlay" role="dialog" aria-modal="true" aria-labelledby="md-title" tabindex="-1" style="display:none;" onclick="closeMasterDetail()">
+    <div class="detail gilt-edge" onclick="event.stopPropagation()">
+        <button class="detail-x" aria-label="关闭详情" onclick="closeMasterDetail()">✕</button>
+        <h2 id="md-title" class="sr-only" style="position:absolute;left:-9999px;">大师详情</h2>
+        <div class="detail-top" id="md-top"></div>
+        <div id="md-content"></div>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+var activeSchool = 'all';
+var _isComposing = false;
+
+(function() {
+    var searchInput = document.getElementById('persona-search');
+    if (searchInput) {
+        searchInput.addEventListener('compositionstart', function() { _isComposing = true; });
+        searchInput.addEventListener('compositionend', function() {
+            _isComposing = false;
+            applyFilters();
+        });
+    }
+})();
+
+function openMasterDetail(id) {
+    var tpl = document.getElementById('tpl-' + id);
+    if(!tpl) return;
+
+    // Remember the element that triggered the modal so we can restore
+    // focus on close (a11y: keyboard users should not lose context).
+    _lastFocusedBeforeModal = document.activeElement;
+
+    // The template contains three top-level parts: medallion, info, and content.
+    // Let's populate the detail-top and the detail-content.
+    var mdTop = document.getElementById('md-top');
+    var mdContent = document.getElementById('md-content');
+
+    // Copy the DOM from template
+    var clone = tpl.content.cloneNode(true);
+
+    mdTop.innerHTML = '';
+    mdContent.innerHTML = '';
+
+    // First two elements go to mdTop (medallion and info)
+    mdTop.appendChild(clone.children[0]);
+    mdTop.appendChild(clone.children[0]); // since we removed the first, the next is index 0
+
+    // The rest goes to mdContent
+    while(clone.children.length > 0) {
+        mdContent.appendChild(clone.children[0]);
+    }
+
+    var overlay = document.getElementById('master-detail-overlay');
+    overlay.style.display = 'flex';
+    // Move focus into the modal so keyboard users land inside it
+    try { overlay.focus(); } catch (e) { /* noop */ }
+}
+
+function closeMasterDetail() {
+    var overlay = document.getElementById('master-detail-overlay');
+    overlay.style.display = 'none';
+    // Restore focus to the card that opened the modal, if we saved it
+    if (_lastFocusedBeforeModal && typeof _lastFocusedBeforeModal.focus === 'function') {
+        try { _lastFocusedBeforeModal.focus(); } catch (e) { /* noop */ }
+    }
+    _lastFocusedBeforeModal = null;
+}
+
+var _lastFocusedBeforeModal = null;
+var _escHandler = function(e) {
+    if (e.key === 'Escape' || e.keyCode === 27) {
+        var ov = document.getElementById('master-detail-overlay');
+        if (ov && ov.style.display !== 'none') {
+            closeMasterDetail();
+        }
+    }
+};
+document.addEventListener('keydown', _escHandler);
+
+function filterBySchool(school, btn) {
+    activeSchool = school;
+    document.querySelectorAll('.school-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    applyFilters();
+}
+
+function applyFilters() {
+    if (_isComposing) return;
+    var query = (document.getElementById('persona-search').value || '').toLowerCase().trim();
+    var cards = document.querySelectorAll('.persona-card');
+    cards.forEach(function(card) {
+        var school = card.dataset.school || '';
+        var name = card.dataset.name || '';
+        var matchSchool = (activeSchool === 'all') || (school === activeSchool);
+        var matchText = !query || name.includes(query);
+        card.style.display = (matchSchool && matchText) ? '' : 'none';
+    });
+}
+
+/* Ask Question Feature */
+function askPersona(agentId, btn) {
+    var card = btn.closest('.persona-card');
+    var tickerInput = card.querySelector('.ask-ticker-input');
+    var questionInput = card.querySelector('.ask-question-input');
+    var responseDiv = document.getElementById('ask-response-' + agentId);
+
+    var ticker = (tickerInput.value || '').trim().toUpperCase();
+    var question = (questionInput.value || '').trim();
+
+    if (!ticker) {
+        tickerInput.style.borderColor = 'var(--signal-sell)';
+        return;
+    }
+    tickerInput.style.borderColor = '';
+
+    btn.disabled = true;
+    btn.textContent = '...';
+    responseDiv.className = 'ask-response visible';
+    responseDiv.setAttribute('aria-busy', 'true');
+    responseDiv.setAttribute('aria-live', 'polite');
+    responseDiv.innerHTML = '<div style="color:var(--text-muted); font-size:0.74rem;">&#x23F3; 正在分析中...</div>';
+
+    var url = '/api/persona/' + agentId + '/opinion?ticker=' + encodeURIComponent(ticker);
+    if (question) {
+        url += '&question=' + encodeURIComponent(question);
+    }
+
+    fetch(url)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.textContent = '提问';
+            responseDiv.setAttribute('aria-busy', 'false');
+            if (data.status === 'ok') {
+                var signalClass = data.signal === 'bullish' ? 'bullish' : (data.signal === 'bearish' ? 'bearish' : 'neutral');
+                var signalText = data.signal === 'bullish' ? 'BULLISH' : (data.signal === 'bearish' ? 'BEARISH' : 'NEUTRAL');
+                var html = '<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">';
+                html += '<span class="signal-badge ' + signalClass + '">' + signalText + '</span>';
+                html += '<span style="font-size:0.74rem; color:var(--accent-orange); font-weight:700;">Score: ' + data.score + '/10</span>';
+                html += '<span style="font-size:0.7rem; color:var(--text-muted);">Confidence: ' + Math.round(data.confidence * 100) + '%</span>';
+                html += '</div>';
+                html += '<div class="reasoning-text">' + (data.reasoning || 'No reasoning provided.') + '</div>';
+                if (data.key_findings && data.key_findings.length > 0) {
+                    html += '<ul class="findings-list">';
+                    data.key_findings.forEach(function(f) { html += '<li>' + f + '</li>'; });
+                    html += '</ul>';
+                }
+                responseDiv.innerHTML = html;
+            } else {
+                responseDiv.innerHTML = '<div style="color:var(--signal-sell); font-size:0.74rem;">Error: ' + (data.detail || 'Unknown error') + '</div>';
+            }
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.textContent = '提问';
+            responseDiv.setAttribute('aria-busy', 'false');
+            responseDiv.innerHTML = '<div style="color:var(--signal-sell); font-size:0.74rem;">Request failed: ' + err.message + '</div>';
+        });
+}
+
+/* Compare Two Masters Feature */
+function runComparison() {
+    var persona1 = document.getElementById('compare-persona1').value;
+    var persona2 = document.getElementById('compare-persona2').value;
+    var ticker = (document.getElementById('compare-ticker').value || '').trim().toUpperCase();
+    var btn = document.getElementById('compare-btn');
+    var resultsDiv = document.getElementById('compare-results');
+    var tbody = document.getElementById('compare-tbody');
+
+    if (!ticker) {
+        document.getElementById('compare-ticker').style.borderColor = 'var(--signal-sell)';
+        return;
+    }
+    document.getElementById('compare-ticker').style.borderColor = '';
+
+    if (persona1 === persona2) {
+        alert('Please select two different masters to compare.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '&#x23F3; 分析中...';
+    resultsDiv.className = 'compare-results visible';
+    resultsDiv.setAttribute('aria-busy', 'true');
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:20px;">Loading...</td></tr>';
+
+    var url = '/api/persona/compare?persona1=' + encodeURIComponent(persona1) + '&persona2=' + encodeURIComponent(persona2) + '&ticker=' + encodeURIComponent(ticker);
+
+    fetch(url)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.innerHTML = '&#x1F50D; 对比分析';
+            resultsDiv.setAttribute('aria-busy', 'false');
+            if (data.status === 'ok') {
+                var p1 = data.persona1;
+                var p2 = data.persona2;
+                document.getElementById('compare-name1').textContent = p1.agent_name;
+                document.getElementById('compare-name2').textContent = p2.agent_name;
+
+                var signalBadge = function(signal) {
+                    var cls = signal === 'bullish' ? 'bullish' : (signal === 'bearish' ? 'bearish' : 'neutral');
+                    var txt = signal.toUpperCase();
+                    return '<span class="signal-badge ' + cls + '">' + txt + '</span>';
+                };
+
+                var html = '';
+                html += '<tr><td>Signal</td><td>' + signalBadge(p1.signal) + '</td><td>' + signalBadge(p2.signal) + '</td></tr>';
+                html += '<tr><td>Score</td><td style="color:var(--accent-orange); font-weight:700;">' + p1.score + '/10</td><td style="color:var(--accent-orange); font-weight:700;">' + p2.score + '/10</td></tr>';
+                html += '<tr><td>Confidence</td><td>' + Math.round(p1.confidence * 100) + '%</td><td>' + Math.round(p2.confidence * 100) + '%</td></tr>';
+                html += '<tr><td>School</td><td><span class="school-badge ' + p1.school + '">' + p1.school + '</span></td><td><span class="school-badge ' + p2.school + '">' + p2.school + '</span></td></tr>';
+                html += '<tr><td>Reasoning</td><td style="font-size:0.72rem; line-height:1.5;">' + (p1.reasoning || '-') + '</td><td style="font-size:0.72rem; line-height:1.5;">' + (p2.reasoning || '-') + '</td></tr>';
+
+                var findings1 = (p1.key_findings || []).map(function(f) { return '<li>' + f + '</li>'; }).join('') || '<li>-</li>';
+                var findings2 = (p2.key_findings || []).map(function(f) { return '<li>' + f + '</li>'; }).join('') || '<li>-</li>';
+                html += '<tr><td>Key Findings</td><td><ul style="padding-left:14px; margin:0; font-size:0.72rem;">' + findings1 + '</ul></td><td><ul style="padding-left:14px; margin:0; font-size:0.72rem;">' + findings2 + '</ul></td></tr>';
+
+                html += '<tr><td>Agreement</td><td colspan="2" style="text-align:center;">';
+                if (data.agreement) {
+                    html += '<span style="color:var(--signal-buy); font-weight:600;">&#x2705; Consensus (Score diff: ' + data.score_diff + ')</span>';
+                } else {
+                    html += '<span style="color:var(--signal-sell); font-weight:600;">&#x274C; Divergent (Score diff: ' + data.score_diff + ')</span>';
+                }
+                html += '</td></tr>';
+                tbody.innerHTML = html;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" style="color:var(--signal-sell); text-align:center;">' + (data.detail || 'Error') + '</td></tr>';
+            }
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = '&#x1F50D; 对比分析';
+            resultsDiv.setAttribute('aria-busy', 'false');
+            tbody.innerHTML = '<tr><td colspan="3" style="color:var(--signal-sell); text-align:center;">Request failed: ' + err.message + '</td></tr>';
+        });
+}
+</script>
+{% endblock %}

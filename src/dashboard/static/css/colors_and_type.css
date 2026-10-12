@@ -1,0 +1,813 @@
+/* ============================================================
+   AUGUR — Design System Foundations
+   colors_and_type.css
+
+   The fusion: BLOOMBERG TERMINAL (the data substrate) ×
+   DRAGON QUEST HD-2D / OCTOPATH (the oracle narrative layer).
+
+   Rule of thumb encoded below:
+     • Numbers, tables, dense UI  → terminal tokens (mono, amber, sharp)
+     • Brand, names, verdicts, lore → oracle tokens (pixel font, gold, parchment)
+
+   Import this file, then use the semantic vars (--h1, --eyebrow, --signal-buy…).
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap');
+
+:root {
+  /* ---------------------------------------------------------
+     0 · SMOOTH THEME TRANSITION — all themed surfaces animate
+     --------------------------------------------------------- */
+  --theme-transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                      color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                      border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------------------------------------------------------
+     1 · TERMINAL CANVAS — near-black trading-desk surfaces
+     --------------------------------------------------------- */
+  --bg-void:        #0a0a0f;   /* app background, the dark hall   */
+  --bg-panel:       #10101a;   /* sidebar, rails, sticky chrome   */
+  --bg-card:        #14141f;   /* default card / tile             */
+  --bg-card-hover:  #1a1a2a;   /* card hover                      */
+  --bg-tertiary:    #1a1a2e;   /* inset wells, inputs             */
+  --bg-elevated:    #1e1e2e;   /* popovers, menus                 */
+  --bg-secondary:   #10101a;   /* secondary panel/card background */
+  --bg-hover:       #1a1a2a;   /* card hover helper               */
+
+  /* ---------------------------------------------------------
+     2 · AMBER — the terminal accent (Bloomberg signature)
+     --------------------------------------------------------- */
+  --amber:          #ff8c00;   /* primary accent / links / focus  */
+  --amber-bright:   #ffaa33;   /* hover, brighter amber           */
+  --amber-glow:     rgba(255,140,0,0.15);  /* focus ring / wash   */
+  --amber-wash:     rgba(255,140,0,0.08);  /* tint backgrounds    */
+
+  /* ---------------------------------------------------------
+     3 · SIGNALS — buy / sell / neutral (tape colors)
+     --------------------------------------------------------- */
+  --signal-buy:     #00c853;   /* BULLISH / long / up             */
+  --signal-sell:    #ff1744;   /* BEARISH / short / down          */
+  --signal-neutral: #ffd600;   /* HOLD / flat                     */
+  --signal-buy-bg:     rgba(0,200,83,0.15);
+  --signal-sell-bg:    rgba(255,23,68,0.15);
+  --signal-neutral-bg: rgba(255,214,0,0.12);
+
+  /* supporting data hues (charts, providers, spardevelopers) */
+  --data-green:  #66bb6a;
+  --data-blue:   #4fc3f7;
+  --data-red:    #ef5350;
+  --data-yellow: #ffa726;
+
+  /* ---------------------------------------------------------
+     4 · ORACLE — HD-2D fantasy layer (used for brand moments)
+     parchment scrolls · royal banner · gilt scales · crystal
+     --------------------------------------------------------- */
+  --parchment:      #e8dcc0;   /* scroll / report paper           */
+  --parchment-deep: #d4c4a0;   /* aged paper edge / shadow band   */
+  --parchment-ink:  #2a2118;   /* text written on parchment       */
+
+  /* Report prose — deep analysis markdown readability */
+  --report-surface:     var(--bg-card);
+  --report-text:        var(--fg-1);
+  --report-text-muted:  var(--fg-2);
+  --report-heading:     var(--amber);
+  --report-heading-sub: var(--amber-bright);
+  --report-code-bg:     var(--bg-tertiary);
+  --report-code-fg:     var(--amber);
+  --report-quote-bg:    rgba(255, 140, 0, 0.06);
+  --report-table-head:  var(--bg-tertiary);
+  --report-table-stripe:rgba(255, 255, 255, 0.015);
+  --report-chart-label: var(--fg-2);
+  --report-chart-track: rgba(255, 255, 255, 0.06);
+  --oracle-purple:  #3a2c6e;   /* the temple banner, regalia      */
+  --oracle-purple-d:#241a46;   /* deep shadow of the banner       */
+  --gilt:           #d4af37;   /* scales-of-justice gold, framing */
+  --gilt-bright:    #f0d573;   /* highlight on gold               */
+  --crystal:        #5cc8ff;   /* crystal-ball glow, holo charts  */
+  --crystal-deep:   #1b4a7a;   /* crystal shadow                  */
+
+  /* ---------------------------------------------------------
+     5 · BORDERS & TEXT
+     --------------------------------------------------------- */
+  --border:        #1e1e2e;
+  --border-hover:  #2e2e3e;
+  --border-gilt:   rgba(212,175,55,0.45);  /* HD-2D framed border */
+
+  --fg-1: #e8e8f0;   /* primary text                              */
+  --fg-2: #8888a0;   /* secondary / labels                        */
+  --fg-3: #8686a0;   /* muted / disabled / hint (≥4.5:1 on card)  */
+
+  /* ---------------------------------------------------------
+     6 · TYPE FAMILIES
+     - sans  : Inter        (UI chrome, prose)
+     - mono  : JetBrains    (ALL numbers, tickers, data)
+     - pixel : Press Start 2P (wordmark, big verdicts — sparingly)
+     - pixfin: Silkscreen   (master names, eyebrows, tags, dialogue)
+     --------------------------------------------------------- */
+  --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --font-pixel: 'Press Start 2P', 'Silkscreen', monospace;
+  --font-pixfin:'Silkscreen', 'Press Start 2P', monospace;
+
+  /* ---------------------------------------------------------
+     7 · RADII — terminal is sharp; oracle frames are square-cut
+     --------------------------------------------------------- */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-pixel: 0px;   /* HD-2D panels are hard-edged, no rounding   */
+
+  /* ---------------------------------------------------------
+     8 · ELEVATION — flat terminal + one HD-2D "stone" shadow
+     --------------------------------------------------------- */
+  --shadow-card:  0 4px 16px rgba(0,0,0,0.15);
+  --shadow-pop:   0 8px 28px rgba(0,0,0,0.45);
+  --shadow-glow:  0 0 0 2px var(--amber-glow), 0 0 18px rgba(255,140,0,0.18);
+  /* HD-2D dialogue/scroll: chunky offset "drop" like a JRPG box  */
+  --shadow-pixel: 4px 4px 0 0 rgba(0,0,0,0.55);
+  --shadow-gilt:  0 0 0 2px var(--gilt), 0 0 24px rgba(212,175,55,0.25);
+
+  /* ---------------------------------------------------------
+     9 · SPACING & MOTION
+     --------------------------------------------------------- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 0.15s;
+  --dur:      0.25s;
+  /* HD-2D "stepped" easing — motion that snaps like sprite frames */
+  --ease-step: steps(4, end);
+
+  /* ===========================================================
+     SEMANTIC TYPE SCALE
+     =========================================================== */
+  /* Pixel wordmark / hero verdict — Press Start 2P, tracked open */
+  --display:       700 2.2rem/1.25 var(--font-pixel);
+  --display-track: 0;
+
+  /* Headings — Inter, tight, the workhorse titles */
+  --h1: 700 1.65rem/1.3  var(--font-sans);
+  --h2: 700 1.25rem/1.35 var(--font-sans);
+  --h3: 600 1.02rem/1.4  var(--font-sans);
+  --h4: 600 0.9rem/1.45  var(--font-sans);
+
+  /* Eyebrow / section kicker — pixel, uppercase, wide tracking */
+  --eyebrow: 400 0.62rem/1.4 var(--font-pixfin);
+  --eyebrow-track: 1.5px;
+
+  /* Body */
+  --body:       400 0.875rem/1.6 var(--font-sans);
+  --body-sm:    400 0.78rem/1.55 var(--font-sans);
+  --label:      600 0.72rem/1.4  var(--font-sans);
+
+  /* Data — every number, ticker, score, price */
+  --data-xl: 700 1.7rem/1.1  var(--font-mono);
+  --data-lg: 700 1.3rem/1.15 var(--font-mono);
+  --data-md: 600 0.95rem/1.3 var(--font-mono);
+  --data-sm: 500 0.78rem/1.3 var(--font-mono);
+
+  /* Master name / oracle dialogue — Silkscreen pixel */
+  --name:   700 0.95rem/1.3 var(--font-pixfin);
+  --dialog: 400 0.95rem/1.7 var(--font-mono);
+
+  /* ---------------------------------------------------------
+     10 · LAYOUT & COMPONENT CONSTANTS
+     --------------------------------------------------------- */
+  --sidebar-width:     240px;
+  --sidebar-collapsed: 64px;
+  --border-subtle:     #181824;   /* near-black divider / inset shadow */
+  --bg-surface:        #161b22;   /* GitHub-dark-style raised surface  */
+}
+
+/* ============================================================
+   LIGHT MODE — "Daylight Terminal" (parchment-leaning)
+   The product ships a light theme; oracle tokens warm up.
+   ============================================================ */
+:root.light, html.light {
+  --bg-void:       #f4f1ea;
+  --bg-panel:      #ffffff;
+  --bg-card:       #ffffff;
+  --bg-card-hover: #f0ece2;
+  --bg-tertiary:   #ece7da;
+  --bg-elevated:   #ffffff;
+  --bg-secondary:  #f0ece2;
+  --bg-hover:      #ece7da;
+
+  --amber:        #cf6f00;
+  --amber-bright: #e67e00;
+
+  --signal-buy:     #1b8a4b;
+  --signal-sell:    #c62828;
+  --signal-neutral: #7a5800;
+
+  --border:       #ddd6c6;
+  --border-hover: #c4bba6;
+
+  --fg-1: #20180e;
+  --fg-2: #5a5142;
+  --fg-3: #6b6356;
+
+  --parchment: #fbf7ee;
+  --parchment-deep: #ece2cc;
+  --parchment-ink: #2a2118;
+
+  /* Light parchment report — dark ink on warm paper (WCAG AA+) */
+  --report-surface:     var(--parchment);
+  --report-text:        var(--parchment-ink);
+  --report-text-muted:  #4a3e30;
+  --report-heading:     #503810;
+  --report-heading-sub: #6b4f1d;
+  --report-code-bg:     rgba(0, 0, 0, 0.05);
+  --report-code-fg:     #8a4f00;
+  --report-quote-bg:    rgba(0, 0, 0, 0.03);
+  --report-table-head:  rgba(0, 0, 0, 0.04);
+  --report-table-stripe:rgba(0, 0, 0, 0.02);
+  --report-chart-label: #5a5142;
+  --report-chart-track: rgba(0, 0, 0, 0.08);
+
+  /* bloomberg.css legacy aliases — single source of truth */
+  --text-primary:   var(--fg-1);
+  --text-secondary: var(--fg-2);
+  --text-muted:     var(--fg-3);
+  --bg-primary:     var(--bg-void);
+  --bg-sidebar:     var(--bg-panel);
+  --border-color:   var(--border);
+  --accent-orange:  var(--amber);
+  --bg-surface:    #ece7da;
+  --border-subtle: #ece7da;
+  --accent-green:  #1b8a4b;
+  --accent-blue:   #1565c0;
+  --accent-red:    #c62828;
+  --accent-yellow: #7a5800;
+  --oracle-purple: #6d5acd;
+  --crystal:       #1a7db8;
+}
+
+/* bloomberg.css legacy aliases (override bloomberg :root after load order) */
+:root {
+  --text-primary:     var(--fg-1);
+  --text-secondary:   var(--fg-2);
+  --text-muted:       var(--fg-3);
+  --bg-primary:       var(--bg-void);
+  --bg-sidebar:       var(--bg-panel);
+  --border-color:     var(--border);
+  --accent-orange:    var(--amber);
+  --accent-green:     var(--data-green);
+  --accent-blue:      var(--data-blue);
+  --accent-red:       var(--data-red);
+  --accent-yellow:    var(--data-yellow);
+  --font-data:        var(--font-mono);
+  --font-ui:          var(--font-sans);
+  --transition-speed: var(--dur);
+  --radius-sm:        var(--r-sm);
+  --radius-md:        var(--r-md);
+  --radius-lg:        var(--r-lg);
+}
+
+/* ============================================================
+   READY-MADE SEMANTIC CLASSES
+   (use these directly, or apply the vars in your own rules)
+   ============================================================ */
+.t-display  { font: var(--display); letter-spacing: var(--display-track); color: var(--amber); text-transform: uppercase; }
+.t-h1       { font: var(--h1); letter-spacing: -0.4px; color: var(--fg-1); }
+.t-h2       { font: var(--h2); letter-spacing: -0.3px; color: var(--fg-1); }
+.t-h3       { font: var(--h3); color: var(--fg-1); }
+.t-h4       { font: var(--h4); color: var(--fg-1); }
+.t-eyebrow  { font: var(--eyebrow); letter-spacing: var(--eyebrow-track); text-transform: uppercase; color: var(--amber); }
+.t-body     { font: var(--body); color: var(--fg-1); }
+.t-body-sm  { font: var(--body-sm); color: var(--fg-2); }
+.t-label    { font: var(--label); text-transform: uppercase; letter-spacing: 0.8px; color: var(--fg-3); }
+.t-data-xl  { font: var(--data-xl); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.t-data-lg  { font: var(--data-lg); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.t-data-md  { font: var(--data-md); color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.t-data-sm  { font: var(--data-sm); color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.t-name     { font: var(--name); color: var(--fg-1); }
+.t-dialog   { font: var(--dialog); color: var(--fg-1); }
+
+.fg-1 { color: var(--fg-1); } .fg-2 { color: var(--fg-2); } .fg-3 { color: var(--fg-3); }
+.c-buy { color: var(--signal-buy); } .c-sell { color: var(--signal-sell); } .c-neutral { color: var(--signal-neutral); }
+.c-amber { color: var(--amber); } .c-gilt { color: var(--gilt); } .c-crystal { color: var(--crystal); }
+
+/* Pixel-perfect image rendering — keep sprites crisp, never blurred */
+.pixelated { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* ============================================================
+   DARK MODE — explicit [data-theme="dark"] selector
+   Variables: bg #1a1a2e, card #16213e, text #e0e0e0,
+   muted #8892b0, border #2a2a4a, accent #ff6b35
+   ============================================================ */
+[data-theme="dark"] {
+  --bg-void:        #1a1a2e;
+  --bg-panel:       #14142a;
+  --bg-card:        #16213e;
+  --bg-card-hover:  #1c2a4a;
+  --bg-tertiary:    #1e2a4a;
+  --bg-elevated:    #1c2848;
+  --bg-secondary:   #14142a;
+  --bg-hover:       #1c2a4a;
+
+  --amber:          #ff6b35;
+  --amber-bright:   #ff8855;
+  --amber-glow:     rgba(255,107,53,0.15);
+  --amber-wash:     rgba(255,107,53,0.08);
+
+  --border:         #2a2a4a;
+  --border-hover:   #3a3a5a;
+  --border-subtle:  #1e1e3a;
+
+  --fg-1: #e0e0e0;
+  --fg-2: #8892b0;
+  --fg-3: #6a7490;
+
+  --text-primary:   var(--fg-1);
+  --text-secondary: var(--fg-2);
+  --text-muted:     var(--fg-3);
+  --bg-primary:     var(--bg-void);
+  --bg-sidebar:     var(--bg-panel);
+  --border-color:   var(--border);
+  --accent-orange:  var(--amber);
+
+  --bg-surface:     #1a2444;
+}
+
+/* ============================================================
+   SYSTEM DARK MODE — @media (prefers-color-scheme: dark)
+   Applies when no explicit data-theme is set
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not(.light) {
+    --bg-void:        #1a1a2e;
+    --bg-panel:       #14142a;
+    --bg-card:        #16213e;
+    --bg-card-hover:  #1c2a4a;
+    --bg-tertiary:    #1e2a4a;
+    --bg-elevated:    #1c2848;
+    --bg-secondary:   #14142a;
+    --bg-hover:       #1c2a4a;
+
+    --amber:          #ff6b35;
+    --amber-bright:   #ff8855;
+    --amber-glow:     rgba(255,107,53,0.15);
+    --amber-wash:     rgba(255,107,53,0.08);
+
+    --border:         #2a2a4a;
+    --border-hover:   #3a3a5a;
+    --border-subtle:  #1e1e3a;
+
+    --fg-1: #e0e0e0;
+    --fg-2: #8892b0;
+    --fg-3: #6a7490;
+
+    --text-primary:   var(--fg-1);
+    --text-secondary: var(--fg-2);
+    --text-muted:     var(--fg-3);
+    --bg-primary:     var(--bg-void);
+    --bg-sidebar:     var(--bg-panel);
+    --border-color:   var(--border);
+    --accent-orange:  var(--amber);
+
+    --bg-surface:     #1a2444;
+  }
+}
+
+/* ============================================================
+   THEME TOGGLE BUTTON — fixed bottom-right, moon/sun icons
+   ============================================================ */
+.theme-toggle-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9990;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--fg-1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  transition: all var(--dur) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-toggle-fab:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+.theme-toggle-fab:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+.theme-toggle-fab .icon-sun,
+.theme-toggle-fab .icon-moon {
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+/* In light mode: show moon (offer dark), hide sun */
+.theme-toggle-fab .icon-moon { display: inline; }
+.theme-toggle-fab .icon-sun  { display: none; }
+/* In dark mode: show sun (offer light), hide moon */
+[data-theme="dark"] .theme-toggle-fab .icon-moon,
+html.dark .theme-toggle-fab .icon-moon { display: none; }
+[data-theme="dark"] .theme-toggle-fab .icon-sun,
+html.dark .theme-toggle-fab .icon-sun  { display: inline; }
+
+/* Inline theme toggle (sidebar footer variant) */
+.theme-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--fg-2);
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  transition: all var(--dur-fast) var(--ease);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+}
+.theme-toggle-btn:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   SMOOTH THEME TRANSITIONS — every themed surface animates
+   ============================================================ */
+body, .app, .sb, .sidebar, .main, .app-main,
+.card, .mcard, .sc, .d-panel, .exec,
+table, th, td, tr,
+input, textarea, select, button,
+code, pre, kbd,
+.modal, [role="dialog"], .overlay, .detail,
+.tooltip, .popover, .dropdown-menu,
+.badge, .tag, .chip, .filter-tag,
+.bottom-nav, .bottom-nav-item,
+.toast, .toast-msg,
+.hero, .council-hero,
+.auth-panel,
+.md-table-wrap, .md-table, .md-code, .md-quote, .md-hr,
+.form-group, .form-input, .form-label,
+.btn, .btn-primary, .btn-secondary,
+.progress-bar, .progress-bar-fill,
+.empty-state,
+.ticker-tape-wrap,
+.status-indicator,
+.nav-item, .sb-item, .sb-group {
+  transition: var(--theme-transition);
+}
+
+/* ============================================================
+   DARK MODE COMPONENT STYLES
+   Ensures tables, forms, buttons, cards, modals, code blocks,
+   markdown, badges, and selects are readable in dark mode
+   ============================================================ */
+
+/* --- Tables in dark mode --- */
+[data-theme="dark"] table,
+html.dark table {
+  border-color: var(--border);
+}
+[data-theme="dark"] th,
+html.dark th {
+  background: var(--bg-tertiary);
+  color: var(--fg-1);
+  border-color: var(--border);
+}
+[data-theme="dark"] td,
+html.dark td {
+  color: var(--fg-1);
+  border-color: var(--border);
+}
+[data-theme="dark"] tr:nth-child(even),
+html.dark tr:nth-child(even) {
+  background: rgba(255,255,255,0.02);
+}
+[data-theme="dark"] tr:hover,
+html.dark tr:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+/* --- Forms in dark mode --- */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select,
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background: var(--bg-tertiary);
+  color: var(--fg-1);
+  border-color: var(--border);
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder,
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: var(--fg-3);
+}
+[data-theme="dark"] input:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus,
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-glow);
+}
+
+/* --- Buttons in dark mode --- */
+[data-theme="dark"] button:not(.theme-toggle-fab):not(.theme-toggle-btn),
+html.dark button:not(.theme-toggle-fab):not(.theme-toggle-btn) {
+  color: var(--fg-1);
+}
+[data-theme="dark"] .btn-primary,
+html.dark .btn-primary {
+  background: var(--amber);
+  color: #0a0a0f;
+  border-color: var(--amber);
+}
+[data-theme="dark"] .btn-secondary,
+html.dark .btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--fg-1);
+  border-color: var(--border);
+}
+
+/* --- Cards in dark mode --- */
+[data-theme="dark"] .card,
+html.dark .card {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--fg-1);
+}
+
+/* --- Modals in dark mode --- */
+[data-theme="dark"] [role="dialog"],
+html.dark [role="dialog"] {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--fg-1);
+}
+[data-theme="dark"] [role="dialog"] .modal-header,
+html.dark [role="dialog"] .modal-header {
+  border-bottom-color: var(--border);
+}
+[data-theme="dark"] [role="dialog"] .modal-footer,
+html.dark [role="dialog"] .modal-footer {
+  border-top-color: var(--border);
+}
+
+/* --- Code blocks in dark mode --- */
+[data-theme="dark"] code,
+[data-theme="dark"] pre,
+html.dark code,
+html.dark pre {
+  background: var(--bg-tertiary);
+  color: var(--amber);
+  border-color: var(--border);
+}
+[data-theme="dark"] pre,
+html.dark pre {
+  border: 1px solid var(--border);
+}
+
+/* --- Checkboxes & radios in dark mode --- */
+[data-theme="dark"] input[type="checkbox"],
+[data-theme="dark"] input[type="radio"],
+html.dark input[type="checkbox"],
+html.dark input[type="radio"] {
+  accent-color: var(--amber);
+}
+
+/* --- Range slider in dark mode --- */
+[data-theme="dark"] input[type="range"],
+html.dark input[type="range"] {
+  background: var(--bg-tertiary);
+  accent-color: var(--amber);
+}
+[data-theme="dark"] input[type="range"]::-webkit-slider-runnable-track,
+html.dark input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--bg-tertiary);
+}
+[data-theme="dark"] input[type="range"]::-webkit-slider-thumb,
+html.dark input[type="range"]::-webkit-slider-thumb {
+  background: var(--amber);
+  border: 2px solid var(--border);
+}
+
+/* --- File input in dark mode --- */
+[data-theme="dark"] input[type="file"],
+html.dark input[type="file"] {
+  color: var(--fg-2);
+}
+[data-theme="dark"] input[type="file"]::file-selector-button,
+html.dark input[type="file"]::file-selector-button {
+  background: var(--bg-tertiary);
+  color: var(--fg-1);
+  border: 1px solid var(--border);
+}
+
+/* --- Select options panel in dark mode --- */
+[data-theme="dark"] select option,
+html.dark select option {
+  background: var(--bg-card);
+  color: var(--fg-1);
+}
+
+/* --- Fieldset & legend in dark mode --- */
+[data-theme="dark"] fieldset,
+html.dark fieldset {
+  border-color: var(--border);
+}
+[data-theme="dark"] legend,
+html.dark legend {
+  color: var(--fg-1);
+}
+
+/* --- Badges, tags, chips in dark mode --- */
+[data-theme="dark"] .badge,
+[data-theme="dark"] .tag,
+[data-theme="dark"] .chip,
+html.dark .badge,
+html.dark .tag,
+html.dark .chip {
+  background: var(--bg-tertiary);
+  color: var(--fg-1);
+  border-color: var(--border);
+}
+[data-theme="dark"] .badge.badge-amber,
+[data-theme="dark"] .tag.tag-amber,
+html.dark .badge.badge-amber,
+html.dark .tag.tag-amber {
+  background: var(--amber-wash);
+  color: var(--amber);
+  border-color: var(--amber);
+}
+
+/* --- Markdown rendered elements in dark mode --- */
+[data-theme="dark"] .md-table-wrap,
+html.dark .md-table-wrap {
+  overflow-x: auto;
+}
+[data-theme="dark"] .md-table,
+html.dark .md-table {
+  border-color: var(--border);
+}
+[data-theme="dark"] .md-table th,
+html.dark .md-table th {
+  background: var(--bg-tertiary);
+  color: var(--amber);
+  border-color: var(--border);
+}
+[data-theme="dark"] .md-table td,
+html.dark .md-table td {
+  color: var(--fg-1);
+  border-color: var(--border);
+}
+[data-theme="dark"] .md-table tr:nth-child(even),
+html.dark .md-table tr:nth-child(even) {
+  background: rgba(255,255,255,0.02);
+}
+[data-theme="dark"] .md-code,
+html.dark .md-code {
+  background: var(--bg-tertiary);
+  color: var(--amber);
+  border: 1px solid var(--border);
+}
+[data-theme="dark"] .md-quote,
+html.dark .md-quote {
+  border-left-color: var(--amber);
+  color: var(--fg-2);
+  background: var(--amber-wash);
+}
+[data-theme="dark"] .md-hr,
+html.dark .md-hr {
+  border-top-color: var(--border);
+}
+[data-theme="dark"] .md-h,
+html.dark .md-h {
+  color: var(--fg-1);
+}
+
+/* --- Tooltips & popovers in dark mode --- */
+[data-theme="dark"] .tooltip,
+[data-theme="dark"] .popover,
+html.dark .tooltip,
+html.dark .popover {
+  background: var(--bg-elevated);
+  color: var(--fg-1);
+  border-color: var(--border);
+}
+
+/* --- Dropdown menus in dark mode --- */
+[data-theme="dark"] .dropdown-menu,
+html.dark .dropdown-menu {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+[data-theme="dark"] .dropdown-item,
+html.dark .dropdown-item {
+  color: var(--fg-1);
+}
+[data-theme="dark"] .dropdown-item:hover,
+html.dark .dropdown-item:hover {
+  background: var(--bg-card-hover);
+}
+[data-theme="dark"] .dropdown-divider,
+html.dark .dropdown-divider {
+  border-top-color: var(--border);
+}
+
+/* --- HR / dividers in dark mode --- */
+[data-theme="dark"] hr,
+html.dark hr {
+  border-color: var(--border);
+}
+
+/* --- Disabled form controls in dark mode --- */
+[data-theme="dark"] input:disabled,
+[data-theme="dark"] textarea:disabled,
+[data-theme="dark"] select:disabled,
+[data-theme="dark"] button:disabled,
+html.dark input:disabled,
+html.dark textarea:disabled,
+html.dark select:disabled,
+html.dark button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- Skip-link visibility --- */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 8px;
+  z-index: 10001;
+  background: var(--amber);
+  color: #0a0a0f;
+  padding: 8px 16px;
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: top var(--dur-fast) var(--ease);
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* ============ Dark Mode Detail Polish ============ */
+[data-theme="dark"] {
+  --bg: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-muted: #0f3460;
+  --bg-hover: #1a3a5c;
+  --text: #e0e0e0;
+  --text-muted: #8892b0;
+  --border: #2a2a4a;
+  --accent: #ff6b35;
+}
+
+/* Dark mode: tables */
+[data-theme="dark"] table { border-color: #2a2a4a; }
+[data-theme="dark"] th { background: #0f3460; color: #e0e0e0; }
+[data-theme="dark"] td { border-color: #2a2a4a; color: #e0e0e0; }
+[data-theme="dark"] tr:hover { background: #1a3a5c; }
+
+/* Dark mode: forms */
+[data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+  background: #0f3460; color: #e0e0e0; border-color: #2a2a4a;
+}
+[data-theme="dark"] input::placeholder { color: #8892b0; }
+
+/* Dark mode: code blocks */
+[data-theme="dark"] code, [data-theme="dark"] pre {
+  background: #0f3460; color: #7fd1ff; border-color: #2a2a4a;
+}
+
+/* Dark mode: modals */
+[data-theme="dark"] .modal-content, [data-theme="dark"] .acp-dialog {
+  background: #16213e; border-color: #2a2a4a;
+}
+
+/* Dark mode: cards and panels */
+[data-theme="dark"] .tj-card, [data-theme="dark"] .eq-item, [data-theme="dark"] .ib-item,
+[data-theme="dark"] .sc-item, [data-theme="dark"] .sc-stat, [data-theme="dark"] .sc-controls {
+  background: #16213e; border-color: #2a2a4a;
+}
+
+/* Smooth theme transition */
+body, .tj-card, .eq-item, .ib-item, .sc-item, input, select, textarea, table, code {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

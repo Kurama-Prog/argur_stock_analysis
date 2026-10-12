@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Augur{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div class="page-header__text">
+        <h1 class="page-title" data-i18n="login-title">登录</h1>
+        <p class="page-desc" data-i18n="login-desc">登录以访问 Augur 仪表盘</p>
+    </div>
+</header>
+
+<div class="auth-panel">
+    <form id="login-form" onsubmit="handleLogin(event)" aria-labelledby="login-title">
+        <div class="form-group">
+            <label for="username" data-i18n="login-username">用户名</label>
+            <input type="text" id="username" name="username" class="form-input" required
+                   placeholder="Enter your username" autocomplete="username" maxlength="32" aria-required="true">
+        </div>
+        <div class="form-group">
+            <label for="password" data-i18n="login-password">密码</label>
+            <input type="password" id="password" name="password" class="form-input" required
+                   placeholder="Enter your password" autocomplete="current-password" maxlength="128" aria-required="true">
+        </div>
+        <div id="login-error" class="auth-error" role="alert"></div>
+        <button type="submit" id="login-submit-btn" class="btn btn-primary btn-block" data-i18n="login-submit">
+            登录
+        </button>
+    </form>
+    <p class="auth-panel-footer">
+        <span data-i18n="login-register-link">还没有账号？</span> <a href="/register">Register</a>
+    </p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function handleLogin(event) {
+    event.preventDefault();
+    var errorEl = document.getElementById('login-error');
+    var submitBtn = document.getElementById('login-submit-btn');
+    errorEl.style.display = 'none';
+
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+
+    if (!username || !password) {
+        errorEl.textContent = 'Please fill in all fields.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    var origLabel = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('is-loading');
+        submitBtn.textContent = (typeof window.t === 'function' ? window.t('login-signing-in') : 'Signing in…');
+    }
+
+    try {
+        var resp = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: username, password: password})
+        });
+        var data = await resp.json();
+        if (resp.ok && data.token) {
+            localStorage.setItem('augur-token', data.token);
+            localStorage.setItem('augur-user', data.username);
+            window.location.href = '/';
+        } else {
+            errorEl.textContent = data.detail || 'Login failed. Please check your credentials.';
+            errorEl.style.display = 'block';
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('is-loading'); submitBtn.textContent = origLabel; }
+        }
+    } catch(e) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.style.display = 'block';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('is-loading'); submitBtn.textContent = origLabel; }
+    }
+}
+</script>
+{% endblock %}

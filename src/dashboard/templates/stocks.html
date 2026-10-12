@@ -1,0 +1,1665 @@
+{% extends "base.html" %}
+{% block title %}股票分析 - Augur{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="/static/js/factor-map.js"></script>
+<style>
+#results { display:none; }
+#results.show { display:block; animation: fadeInUp 0.5s ease forwards; }
+#history-chart-container { margin-bottom: 16px; }
+#history-chart-canvas { max-height: 200px; }
+#spinner { display:none; text-align:center; padding:40px; }
+.agent-reasoning {
+    max-height: 50px;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+    position: relative;
+}
+.agent-reasoning.expanded { max-height: 800px; }
+.agent-reasoning:not(.expanded)::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 25px;
+    background: linear-gradient(transparent, var(--bg-card));
+}
+.expand-btn {
+    font-size: 0.7rem;
+    color: var(--accent-orange);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 2px 0;
+    font-family: var(--font-ui);
+}
+.expand-btn:hover { text-decoration: underline; }
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+}
+.metrics-grid label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 2px;
+}
+.metrics-grid input, .metrics-grid select {
+    width: 100%;
+}
+.adv-toggle {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    font-family: var(--font-ui);
+}
+.adv-toggle:hover { color: var(--accent-orange); }
+.adv-metrics {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+.adv-metrics.open { max-height: 400px; }
+.copy-btn {
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--accent-orange);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-ui);
+}
+.copy-btn:hover { background: var(--bg-card-hover); }
+.copy-btn.copied { background: var(--accent-orange); color: var(--bg-void); }
+@media (max-width: 768px) {
+    .stocks-input-row > div { min-width: 100% !important; max-width: 100% !important; }
+    .an-head { flex-direction: column !important; align-items: flex-start !important; gap: 12px; }
+    .adv-toggle { min-height: 44px; display: inline-flex; align-items: center; padding: 8px 0; }
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<header class="page-header mb-16">
+    <div class="page-header__text">
+        <h1 class="page-title" data-i18n="stocks-title">股票分析</h1>
+        <p class="page-lead"><span data-i18n="stocks-desc">输入标的代码即可获得 18 位投资大师的共识判断 —— 高级财务指标可留空，系统自动获取实时数据</span> <span class="shortcut-hint" data-i18n="hero-shortcut-hint">按 / 快速聚焦 · Ctrl+Enter 提交</span></p>
+    </div>
+</header>
+
+<!-- Input Panel -->
+<div class="card mb-24">
+    <div class="flex items-center gap-12 mb-12 stocks-input-row" style="flex-wrap:wrap;">
+        <div style="flex:1; min-width:200px; max-width:280px;">
+            <label class="data-label mb-4" data-i18n="stocks-ticker-label">股票代码</label>
+            <input id="inp-ticker" type="text" class="form-input" style="font-family:var(--font-data); font-size:1.2rem; font-weight:700; text-transform:uppercase; padding:12px 16px;"
+                   data-i18n="stocks-ticker-ph"
+                   placeholder="AAPL / NVDA / 0700.HK"
+                   data-i18n-aria="a11y-stocks-ticker"
+                   aria-label="股票代码输入"
+                   aria-describedby="inp-ticker-hint"
+                   oninput="clearTickerInvalid('inp-ticker', 'inp-ticker-hint')"
+                   onkeydown="if(event.key==='Enter') runAnalysis()">
+            <p id="inp-ticker-hint" class="field-hint" style="display:none; margin-top:4px; font-size:0.72rem; color:var(--signal-sell);"></p>
+        </div>
+        <div style="min-width:100px;">
+            <label class="data-label mb-4" data-i18n="stocks-price-label">价格 (USD)</label>
+            <input id="inp-price" type="number" min="0" step="0.01" class="form-input" placeholder="0" aria-label="Price USD">
+        </div>
+        <div style="min-width:100px;">
+            <label class="data-label mb-4" data-i18n="stocks-mktcap-label">市值 (亿USD)</label>
+            <input id="inp-mktcap" type="number" min="0" class="form-input" placeholder="0" aria-label="Market cap">
+        </div>
+        <div style="min-width:140px;">
+            <label class="data-label mb-4" data-i18n="stocks-sector-label">板块</label>
+            <select id="inp-sector" class="form-select" aria-label="Sector">
+                <option value="" data-i18n="stocks-sector-placeholder">-- 板块 --</option>
+                <option>Technology</option><option>Consumer Cyclical</option><option>Consumer Defensive</option>
+                <option>Healthcare</option><option>Financials</option><option>Energy</option>
+                <option>Industrials</option><option>Materials</option><option>Real Estate</option>
+                <option>Communication Services</option><option>Utilities</option>
+            </select>
+        </div>
+        <div style="min-width:140px;">
+            <label class="data-label mb-4" data-i18n="stocks-industry-label">细分行业</label>
+            <input id="inp-industry" type="text" class="form-input" data-i18n="stocks-industry-ph" placeholder="如 Semiconductor" style="font-size:0.82rem;" aria-label="Industry">
+        </div>
+        <div style="align-self:flex-end; display:flex; gap:8px;">
+            <button id="analyze-btn" class="btn btn-primary" onclick="runAnalysis()" style="padding:10px 24px; font-size:0.92rem;"><span data-i18n="btn-analyze">分析</span></button>
+        </div>
+    </div>
+
+    <!-- Data source indicator -->
+    <div id="data-source-indicator" style="display:none; margin-bottom:8px;">
+        <span style="font-size:0.72rem; padding:2px 8px; border-radius:3px; background:var(--accent-orange); color:var(--bg-void); font-weight:600;" data-i18n="stocks-data-source">数据来源: yfinance 实时</span>
+    </div>
+
+    <!-- Quick tickers -->
+    <div class="mb-12" role="group" data-i18n-aria="a11y-hero-chips-group" aria-label="Quick tickers">
+        <span class="text-muted" style="font-size:0.72rem; margin-right:8px;" data-i18n="stocks-quick-label">快速选择:</span>
+        {% for t in quick_tickers %}
+        <button type="button" class="ticker-btn" onclick="setTickerAndRun('{{ t }}')" data-i18n-aria="stocks-quick-ticker" data-aria-ticker="{{ t }}" aria-label="Analyze {{ t }}">{{ t }}</button>
+        {% endfor %}
+    </div>
+
+    <!-- Recently analyzed tickers -->
+    <div id="recent-tickers-row" class="mb-12" style="display:none;" role="group" aria-label="Recent analyses">
+        <span class="text-muted" style="font-size:0.72rem; margin-right:8px;" data-i18n="stocks-recent-label">最近:</span>
+        <span id="recent-ticker-chips"></span>
+    </div>
+
+    <!-- Advanced metrics toggle -->
+    <div>
+        <button type="button" class="adv-toggle" id="adv-toggle-btn" onclick="toggleAdvMetrics()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAdvMetrics()}" data-i18n="stocks-adv-toggle" aria-expanded="false" aria-controls="advMetrics">&#9654; 高级财务指标 (可选)</button>
+        <div class="adv-metrics" id="advMetrics">
+            <div class="metrics-grid mt-8">
+                <div><label>PE 市盈率</label><input id="inp-pe" type="number" min="0" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>PB 市净率</label><input id="inp-pb" type="number" min="0" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>毛利率 %</label><input id="inp-gm" type="number" min="0" max="100" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>营业利润率 %</label><input id="inp-om" type="number" min="-100" max="100" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>ROE %</label><input id="inp-roe" type="number" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>资产负债率 %</label><input id="inp-debt" type="number" min="0" max="100" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>营收增速 %</label><input id="inp-revg" type="number" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>净利润增速 %</label><input id="inp-epsg" type="number" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>自由现金流 (亿)</label><input id="inp-fcf" type="number" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>机构持股 %</label><input id="inp-inst" type="number" min="0" max="100" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>内部人持股 %</label><input id="inp-ins" type="number" min="0" max="100" step="0.1" class="form-input" placeholder="0"></div>
+                <div><label>流动比率</label><input id="inp-cr" type="number" min="0" step="0.01" class="form-input" placeholder="1.5"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Spinner -->
+<div id="spinner" role="status" aria-live="polite" aria-busy="false" data-i18n-aria="a11y-stocks-spinner" aria-label="Analysis in progress">
+    <div class="spinner" style="margin:0 auto;"></div>
+    <p class="loading-pulse text-orange text-mono mt-16 progress-text" id="analyze-progress" data-i18n="hero-progress" style="font-size:0.88rem; text-align:center;">正在唤醒 18 位投资大师...</p>
+    <div class="grid-3 mt-16" style="gap:12px;">
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+    </div>
+</div>
+
+<!-- Error Panel -->
+<div id="error-panel" class="error-panel mb-16" aria-live="polite" role="alert" style="display:none;">
+    <div class="error-panel-title" data-i18n="hero-error-title">分析失败</div>
+    <div class="error-panel-msg" id="error-msg"></div>
+    <div class="error-panel-retry">
+        <button type="button" class="btn btn-sm" onclick="runAnalysis()" data-i18n="btn-retry">重试</button>
+    </div>
+</div>
+
+<!-- Results -->
+<div id="results">
+
+    <!-- Header -->
+    <div class="an-head mb-24">
+        <div>
+            <div style="display:flex;align-items:center;gap:12px">
+                <span id="an-ticker" style="font:700 1.9rem/1 var(--font-mono);color:var(--fg-1);letter-spacing:-1px"></span>
+                <span id="an-name" style="font:600 0.7rem/1 var(--font-pixfin);color:var(--fg-3);text-transform:uppercase;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                <span id="an-price" style="font:var(--data-lg);color:var(--fg-1)"></span>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="pixel-btn dark" onclick="runAnalysis()">↻ Re-run</button>
+            <button class="pixel-btn dark" onclick="exportJSON()">⤓ Export</button>
+            <button class="pixel-btn dark" id="stocks-watchlist-btn" onclick="addCurrentToWatchlist()" data-i18n="stocks-add-watchlist" style="display:none;">+ Watchlist</button>
+            <button class="pixel-btn" onclick="generateReport()" id="gen-report-btn">Deep Report</button>
+        </div>
+    </div>
+
+    <!-- ExecCard -->
+    <div class="exec gilt-edge">
+        <div class="exec-glow"></div>
+        <div class="ring" id="exec-ring" style="--pct: 0">
+            <div class="ring-in">
+                <span class="ring-v" id="exec-score">--</span>
+                <span class="ring-l">/10</span>
+            </div>
+        </div>
+        <div class="exec-mid">
+            <div class="t-eyebrow" style="color:var(--gilt)">◈ Council Consensus</div>
+            <div id="exec-signal" class="verdict neutral" style="margin:6px 0 10px">--</div>
+            <div class="exec-metrics">
+                <div><span class="l">Confidence</span><span class="v" id="exec-conf">--%</span></div>
+                <div><span class="l">Kelly Size</span><span class="v" id="exec-kelly" style="color:var(--amber)">--%</span></div>
+                <div><span class="l">P/E</span><span class="v" id="exec-pe">--</span></div>
+            </div>
+        </div>
+        <div class="exec-votes">
+            <div class="vote buy"><b id="vote-bull">0</b><span>BULLISH</span></div>
+            <div class="vote neutral"><b id="vote-neu">0</b><span>NEUTRAL</span></div>
+            <div class="vote sell"><b id="vote-bear">0</b><span>BEARISH</span></div>
+        </div>
+        <div id="divergence-badge" style="display:none; margin-top:10px; padding:6px 12px; border-radius:6px; background:rgba(255,180,0,0.12); border:1px solid rgba(255,180,0,0.4); font-size:0.72rem; color:var(--amber, #e6b84a); text-align:center; letter-spacing:0.03em;">
+            ⚠ <span id="divergence-label">Agent Divergence</span>
+        </div>
+    </div>
+
+    <!-- OracleSays -->
+    <div class="dialogue" style="margin-top:16px">
+        <div class="speaker"><img src="/static/images/augur-owl-64.png" class="pixelated" width="20" height="20" alt="Oracle"/> The Oracle of Augur</div>
+        <div id="oracle-says" style="font-size:0.85rem;line-height:1.6;"></div>
+        <span class="chevron">▼</span>
+    </div>
+
+    <!-- ScorecardGrid -->
+    <div style="margin-top:24px">
+        <div class="sec-title">18-Master Scorecard</div>
+        <div class="sc-grid" id="sc-grid"></div>
+    </div>
+
+    <!-- Debate -->
+    <div style="margin-top:24px">
+        <div class="sec-title">Bull vs. Bear Debate</div>
+        <div class="debate">
+            <div class="d-panel bull">
+                <div class="d-head" style="color:var(--signal-buy)">▲ The Bull Case</div>
+                <ul id="debate-bull"></ul>
+            </div>
+            <div class="d-panel bear">
+                <div class="d-head" style="color:var(--signal-sell)">▼ The Bear Case</div>
+                <ul id="debate-bear"></ul>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /results -->
+
+<!-- Deep Report Section -->
+<div id="report-section" style="display:none; margin-top:24px;">
+    <!-- Report Toolbar -->
+    <div class="report-toolbar mb-12 flex gap-8 items-center" style="flex-wrap:wrap">
+        <span class="report-title t-eyebrow" style="color:var(--gilt);">&#x1F4CA; Deep Prophecy</span>
+        <a id="view-full-report-link" href="#" class="pixel-btn" style="text-decoration:none; font-weight:600;" target="_blank">Full Report Page</a>
+        <button class="pixel-btn dark" onclick="downloadReport()">Download MD</button>
+        <button class="pixel-btn dark" onclick="downloadReportAsHTML()">Download HTML</button>
+        <button class="pixel-btn dark" onclick="copyReport()">Copy</button>
+        <button class="pixel-btn dark" onclick="downloadPDF()" data-i18n="report-print-pdf" data-i18n-title="report-print-pdf">打印 PDF</button>
+        <button class="pixel-btn dark" onclick="exportFullJSON()">Export JSON</button>
+        <button class="pixel-btn dark" onclick="exportCSV()">Export CSV</button>
+        <button class="pixel-btn dark" onclick="copyReportLink()">Copy Link</button>
+        <button class="pixel-btn dark" onclick="closeReport()">✕ Close</button>
+    </div>
+    
+    <!-- Score Gauge SVG -->
+    <div id="report-score-gauge" style="display:none;"></div>
+    
+    <!-- Report loading state -->
+    <div id="report-loading" class="loading" style="display:none;">
+        <img src="/static/images/augur-owl-128.png" class="pixelated owl-spin" width="80" height="80"/>
+        <div style="font:500 0.82rem/1 var(--font-mono);color:var(--amber);margin-top:10px" id="report-progress">Sealing the prophecy...</div>
+    </div>
+    
+    <div class="sec-title">Generated Report</div>
+    <!-- Full text -->
+    <div id="report-full-text-wrapper" class="scroll" style="margin-top:14px;">
+        <div id="report-content" class="md-report"></div>
+    </div>
+</div>
+
+<!-- Historical Comparison Panel -->
+<div id="history-comparison" class="card mb-24" style="display:none;" role="region" aria-live="polite">
+    <div class="section-title spaced" data-i18n="stocks-history-title">历史对比</div>
+    <p class="text-muted" style="font-size:0.78rem; margin-bottom:12px;" data-i18n="stocks-history-desc">展示您对同一标的在不同时间的分析结果，追踪预测变化趋势</p>
+    <!-- Consensus trend chart -->
+    <div id="history-chart-container" style="display:none;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="font-size:0.72rem; color:var(--text-muted); letter-spacing:0.04em;" data-i18n="stocks-history-chart-title">共识评分走势</div>
+            <div style="display:flex; gap:4px;">
+                <button class="btn btn-sm btn-ghost" id="chart-range-30" onclick="setHistoryRange(30)" style="font-size:0.65rem; padding:2px 8px;" data-i18n="chart-range-30">30天</button>
+                <button class="btn btn-sm btn-ghost" id="chart-range-all" onclick="setHistoryRange(0)" style="font-size:0.65rem; padding:2px 8px;" data-i18n="chart-range-all">全部</button>
+            </div>
+        </div>
+        <canvas id="history-chart-canvas" style="cursor:pointer;"></canvas>
+        <div id="history-point-popup" style="display:none; margin-top:8px; padding:10px 14px; background:var(--bg-card-hover); border:1px solid var(--border-color); border-radius:var(--radius-md,8px); font-size:0.78rem;"></div>
+    </div>
+    <p class="table-scroll-hint" data-i18n="table-scroll-hint">左右滑动查看完整表格</p>
+    <div style="overflow-x:auto;">
+    <table class="md-table" id="history-table" style="width:100%;">
+        <caption class="sr-only" data-i18n="stocks-history-title">历史对比</caption>
+        <thead><tr>
+            <th data-i18n="stocks-history-col-date">日期</th>
+            <th data-i18n="stocks-history-col-score">评分</th>
+            <th data-i18n="stocks-history-col-signal">信号</th>
+            <th data-i18n="stocks-history-col-price">价格</th>
+        </tr></thead>
+        <tbody id="history-tbody"></tbody>
+    </table>
+    </div>
+    <div id="history-empty" class="text-muted" style="font-size:0.78rem; text-align:center; padding:16px;" data-i18n="stocks-history-empty">暂无历史分析记录</div>
+</div>
+
+<!-- Agent detail modal -->
+<div id="agent-detail-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1200; backdrop-filter:blur(4px);" onclick="closeAgentDetail(event)">
+    <div id="agent-detail-panel" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--r-lg,12px); padding:24px; max-width:560px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:var(--shadow-pop);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+            <img id="agd-avatar" src="" width="44" height="44" style="border-radius:50%; border:2px solid var(--border-color);" onerror="this.src='/static/images/augur-owl-64.png'" alt="">
+            <div>
+                <div id="agd-name" style="font:700 1rem var(--font-sans); color:var(--fg-1);"></div>
+                <div id="agd-meta" style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;"></div>
+            </div>
+            <button onclick="closeAgentDetail()" style="margin-left:auto; background:none; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer; padding:4px 8px; line-height:1;">✕</button>
+        </div>
+        <div id="agd-factors" style="display:none; margin-bottom:14px;">
+            <div id="agd-factors-cats" style="display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:6px;"></div>
+            <details>
+                <summary style="font-size:0.72rem; color:var(--text-muted); cursor:pointer;" data-i18n="stocks-expand-factors">展开因子明细</summary>
+                <div id="agd-factors-list" style="margin-top:8px;"></div>
+            </details>
+        </div>
+        <div id="agd-findings" style="margin-bottom:12px;"></div>
+        <div id="agd-risks" style="margin-bottom:12px;"></div>
+        <details style="margin-top:8px;">
+            <summary style="font-size:0.72rem; color:var(--text-muted); cursor:pointer;" data-i18n="stocks-expand-reasoning">展开推理</summary>
+            <div id="agd-reasoning" style="font-size:0.78rem; color:var(--fg-2); line-height:1.6; margin-top:8px; white-space:pre-wrap; word-break:break-word;"></div>
+        </details>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+var lastConsensusText = '';
+var lastAnalysisData = null;
+var lastReportMarkdown = '';
+
+// ===================== Recent tickers =====================
+var _RECENT_KEY = 'augur-recent-tickers';
+var _RECENT_MAX = 6;
+
+function _saveRecentTicker(ticker) {
+    if (!ticker) return;
+    try {
+        var list = JSON.parse(localStorage.getItem(_RECENT_KEY) || '[]');
+        list = list.filter(function(t) { return t !== ticker; });
+        list.unshift(ticker);
+        if (list.length > _RECENT_MAX) list = list.slice(0, _RECENT_MAX);
+        localStorage.setItem(_RECENT_KEY, JSON.stringify(list));
+        _renderRecentTickers();
+    } catch(e) {}
+}
+
+function _renderRecentTickers() {
+    try {
+        var list = JSON.parse(localStorage.getItem(_RECENT_KEY) || '[]');
+        var row = document.getElementById('recent-tickers-row');
+        var chips = document.getElementById('recent-ticker-chips');
+        if (!list.length || !row || !chips) { if (row) row.style.display = 'none'; return; }
+        chips.innerHTML = '';
+        list.forEach(function(t) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ticker-btn';
+            btn.textContent = t;
+            btn.setAttribute('aria-label', 'Re-analyze ' + t);
+            btn.addEventListener('click', function() { setTickerAndRun(t); });
+            chips.appendChild(btn);
+        });
+        row.style.display = '';
+    } catch(e) {}
+}
+
+var AGENT_STYLE_MAP = {
+    buffett: 'style-value-investing', munger: 'style-value-investing', graham: 'style-deep-value',
+    fisher: 'style-growth', cathie_wood: 'style-disruptive', soros: 'style-macro',
+    dalio: 'style-all-weather', marks: 'style-contrarian', lynch: 'style-growth-value',
+    ackman: 'style-activist', li_lu: 'style-value-investing', duan_yongping: 'style-integrity-value',
+    zhang_lei: 'style-value-growth', dan_bin: 'style-long-term', dayu: 'style-trend',
+    thiel: 'style-monopoly', aschenbrenner: 'style-ai-supercycle', arps: 'style-technical',
+    serenity: 'style-quant-neutral'
+};
+
+// Pre-fill ticker and optional persona from query string
+(function(){
+    var p = new URLSearchParams(window.location.search);
+    var t = p.get('ticker');
+    var persona = p.get('persona');
+    if (persona) {
+        // Store persona for use in analysis
+        window._selectedPersona = persona;
+        // Show persona hint
+        var hint = document.createElement('div');
+        hint.id = 'persona-hint';
+        hint.style.cssText = 'font-size:0.78rem; color:var(--accent-orange); margin-bottom:8px; padding:4px 8px; background:rgba(255,140,0,0.08); border-radius:4px; display:inline-block;';
+        var hintTpl = (typeof window.t === 'function') ? window.t('stocks-persona-hint') : '🎯 使用 {persona} 框架分析 (来自人格系统)';
+        hint.textContent = hintTpl.replace(/\{persona\}/g, persona);
+        var container = document.getElementById('inp-ticker') ? document.getElementById('inp-ticker').closest('.card') : null;
+        if (container) container.insertBefore(hint, container.firstChild);
+    }
+    // Auto-generate report if report=1 in URL params
+    if (p.get('report') === '1' && t) {
+        window._autoReport = true;
+    }
+    if (t) { document.getElementById('inp-ticker').value = t; runAnalysis(); }
+    _renderRecentTickers();
+})();
+
+function toggleAdvMetrics() {
+    var panel = document.getElementById('advMetrics');
+    var btn = document.getElementById('adv-toggle-btn');
+    panel.classList.toggle('open');
+    if (btn) btn.setAttribute('aria-expanded', panel.classList.contains('open') ? 'true' : 'false');
+}
+
+function setTickerAndRun(t) {
+    document.getElementById('inp-ticker').value = t;
+    runAnalysis();
+}
+
+function num(id, scale) {
+    var v = parseFloat(document.getElementById(id).value) || 0;
+    return scale ? v * scale : v;
+}
+
+function hasUserMetrics() {
+    return num('inp-price') > 0 || num('inp-pe') > 0 || num('inp-pb') > 0 ||
+           num('inp-gm') > 0 || num('inp-roe') > 0 || num('inp-mktcap') > 0 ||
+           num('inp-revg') != 0 || num('inp-debt') > 0 || num('inp-epsg') != 0 ||
+           num('inp-om') != 0 || num('inp-fcf') != 0;
+}
+
+function runAnalysis() {
+    var ticker = (typeof validateTickerInput === 'function')
+        ? validateTickerInput('inp-ticker', 'inp-ticker-hint')
+        : document.getElementById('inp-ticker').value.trim().toUpperCase();
+    if (!ticker) return;
+
+    // Disable submit button to prevent double-submit
+    var submitBtn = document.getElementById('analyze-btn') || document.querySelector('[onclick="runAnalysis()"]');
+    var submitBtnLabel = submitBtn ? submitBtn.querySelector('[data-i18n]') : null;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('is-loading');
+        if (submitBtnLabel) {
+            submitBtnLabel.textContent = (typeof window.t === 'function' ? window.t('btn-analyzing') : '分析中…');
+        } else {
+            submitBtn.textContent = (typeof window.t === 'function' ? window.t('btn-analyzing') : '分析中…');
+        }
+    }
+    function resetSubmitBtn() {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('is-loading');
+            if (submitBtnLabel) {
+                submitBtnLabel.textContent = (typeof window.t === 'function' ? window.t('btn-analyze') : '分析');
+            }
+        }
+    }
+
+    var params = new URLSearchParams({
+        price: num('inp-price'),
+        market_cap: num('inp-mktcap') / 10,      // 亿USD → billion USD (1亿=0.1B)
+        pe: num('inp-pe'),
+        pb: num('inp-pb'),
+        gross_margins: num('inp-gm') / 100,       // % → decimal
+        operating_margins: num('inp-om') / 100,
+        roe: num('inp-roe') / 100,
+        debt_ratio: num('inp-debt') / 100,        // % → decimal (0.45 not 45)
+        revenue_growth: num('inp-revg') / 100,
+        earnings_growth: num('inp-epsg') / 100,
+        fcf: num('inp-fcf') / 10,                 // 亿USD → billion USD
+        institutional_ownership: num('inp-inst'), // persona code expects 0-100, not 0-1
+        insider_ownership: num('inp-ins'),
+        current_ratio: parseFloat(document.getElementById('inp-cr').value) || 0,
+        sector: document.getElementById('inp-sector').value,
+        industry: document.getElementById('inp-industry') ? document.getElementById('inp-industry').value : '',
+    });
+
+    // If no user metrics, enable auto_fetch
+    if (!hasUserMetrics()) {
+        params.set('auto_fetch', 'true');
+    } else {
+        params.set('auto_fetch', 'false');
+    }
+
+    var resultsEl = document.getElementById('results');
+    resultsEl.style.display = 'none';
+    resultsEl.classList.remove('show');
+    var spinnerEl = document.getElementById('spinner');
+    spinnerEl.style.display = 'block';
+    spinnerEl.setAttribute('aria-busy', 'true');
+    document.getElementById('error-panel').style.display = 'none';
+    startProgress('analyze-progress');
+
+    fetchWithTimeout('/api/analyze/' + ticker + '?' + params, {}, 90000)
+        .then(function(r) {
+            if (!r.ok) {
+                return r.json().then(function(e) {
+                    throw new Error(e.detail || ('请求失败 (HTTP ' + r.status + ')'));
+                }, function() {
+                    throw new Error('请求失败 (HTTP ' + r.status + ')');
+                });
+            }
+            return r.json();
+        })
+        .then(function(data) {
+            stopProgress('analyze-progress');
+            spinnerEl.style.display = 'none';
+            spinnerEl.setAttribute('aria-busy', 'false');
+            resetSubmitBtn();
+            if (!data || !data.consensus) {
+                throw new Error(data && data.detail ? data.detail : '分析返回数据异常，请重试');
+            }
+            // Show data source indicator if data came from yfinance
+            if (data.data_source === 'yfinance') {
+                document.getElementById('data-source-indicator').style.display = 'block';
+            } else {
+                document.getElementById('data-source-indicator').style.display = 'none';
+            }
+            renderResults(data);
+            resultsEl.style.display = 'block';
+            resultsEl.classList.add('show');
+        })
+        .catch(function(err) {
+            stopProgress('analyze-progress');
+            spinnerEl.style.display = 'none';
+            spinnerEl.setAttribute('aria-busy', 'false');
+            resetSubmitBtn();
+            document.getElementById('error-panel').style.display = 'block';
+            var msg = (err && err.name === 'AbortError')
+                ? (typeof window.t === 'function' ? window.t('hero-error-timeout') : '分析超时（超过 90 秒）。18 位大师分析较慢时可稍后重试，或检查后端服务与网络连接。')
+                : (typeof window.t === 'function' ? window.t('hero-error-request') : '请求失败: ') + (err.message || err);
+            document.getElementById('error-msg').textContent = msg;
+        });
+}
+
+function signalBadgeClass(s) {
+    if (!s) return 'signal-badge-neutral';
+    var m = {'bullish':'signal-badge-buy','neutral':'signal-badge-neutral','bearish':'signal-badge-sell'};
+    return m[s.toLowerCase()] || 'signal-badge-neutral';
+}
+
+function signalLabel(s) {
+    var m = {'bullish':'BUY','neutral':'HOLD','bearish':'SELL','error':'ERR'};
+    return m[(s||'').toLowerCase()] || s;
+}
+
+function signalColor(s) {
+    var m = {'bullish':'var(--signal-buy)','neutral':'var(--signal-neutral)','bearish':'var(--signal-sell)'};
+    return m[(s||'').toLowerCase()] || 'var(--text-muted)';
+}
+
+function _factorLabel(t) {
+    var labels = {
+        valuation: _t('compare-radar-valuation', '估值'),
+        growth: _t('compare-radar-growth', '成长'),
+        quality: _t('compare-radar-quality', '质量'),
+        momentum: _t('compare-radar-momentum', '动量'),
+        safety: _t('compare-radar-safety', '安全')
+    };
+    return labels[t] || t;
+}
+
+function _factorBarColor(val) {
+    return val >= 7 ? 'var(--signal-buy)' : (val >= 4 ? 'var(--accent-orange, #ff9500)' : 'var(--signal-sell)');
+}
+
+function renderAgentFactors(agent) {
+    var section = document.getElementById('agd-factors');
+    var catsEl = document.getElementById('agd-factors-cats');
+    var listEl = document.getElementById('agd-factors-list');
+    if (!section || !catsEl || !listEl) return;
+
+    var factors = (agent.metadata && agent.metadata.factors) ? agent.metadata.factors : null;
+    if (!window.AugurFactorMap || !AugurFactorMap.hasFactors(factors)) {
+        section.style.display = 'none';
+        catsEl.innerHTML = '';
+        listEl.innerHTML = '';
+        return;
+    }
+    section.style.display = 'block';
+
+    // 5 category average mini-bars
+    var catsHtml = '';
+    AugurFactorMap.CATEGORIES.forEach(function(cat) {
+        var v = AugurFactorMap.catAvg(factors, cat);
+        var display = v !== null ? v.toFixed(1) : '—';
+        var color = v !== null ? _factorBarColor(v) : 'var(--text-muted)';
+        var barW = v !== null ? Math.round(v * 10) : 0;
+        catsHtml += '<div style="text-align:center;">' +
+            '<div style="font-size:0.62rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:2px;">' + escapeHtml(_factorLabel(cat)) + '</div>' +
+            '<div style="height:4px; background:var(--bg-elevated,#2a2a3e); border-radius:2px; overflow:hidden; margin-bottom:2px;">' +
+            '<div style="width:' + barW + '%; height:100%; background:' + color + '; border-radius:2px;"></div></div>' +
+            '<div style="font-size:0.72rem; font-family:var(--font-mono); color:' + color + ';">' + display + '</div>' +
+            '</div>';
+    });
+    catsEl.innerHTML = catsHtml;
+
+    // Per-factor detail, grouped by category
+    var listHtml = '';
+    AugurFactorMap.CATEGORIES.forEach(function(cat) {
+        var keys = (AugurFactorMap.FACTOR_MAP[cat] || []).filter(function(k) { return factors[k] !== undefined; });
+        if (!keys.length) return;
+        listHtml += '<div style="font-size:0.68rem; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em; margin:8px 0 3px;">' + escapeHtml(_factorLabel(cat)) + '</div>';
+        keys.forEach(function(k) {
+            var val = parseFloat(factors[k]) || 0;
+            var color = _factorBarColor(val);
+            var barW = Math.round(val * 10);
+            listHtml += '<div style="display:flex; align-items:center; gap:6px; margin-bottom:3px; font-size:0.74rem;">' +
+                '<div style="flex:0 0 130px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(k.replace(/_/g, ' ')) + '</div>' +
+                '<div style="flex:1; height:4px; background:var(--bg-elevated,#2a2a3e); border-radius:2px; overflow:hidden;">' +
+                '<div style="width:' + barW + '%; height:100%; background:' + color + '; border-radius:2px;"></div></div>' +
+                '<div style="flex:0 0 28px; text-align:right; font-family:var(--font-mono); color:' + color + ';">' + val.toFixed(1) + '</div>' +
+                '</div>';
+        });
+    });
+    listEl.innerHTML = listHtml;
+}
+
+function showAgentDetail(agent) {
+    var overlay = document.getElementById('agent-detail-overlay');
+    if (!overlay) return;
+    var sigColor = signalColor(agent.signal);
+    var sigLbl = signalLabel(agent.signal);
+    document.getElementById('agd-avatar').src = '/static/images/avatars/' + agent.agent_id + '.png';
+    document.getElementById('agd-name').textContent = agent.agent_name || agent.agent_id;
+    document.getElementById('agd-meta').innerHTML =
+        '<span style="color:' + sigColor + ';font-weight:700;">' + sigLbl + '</span>' +
+        ' &nbsp;|&nbsp; ' +
+        '<span style="color:var(--fg-1);font-family:var(--font-mono);font-weight:700;">' + (agent.score||0).toFixed(1) + '</span>/10' +
+        ' &nbsp;|&nbsp; ' +
+        'Conf: ' + ((agent.confidence||0)*100).toFixed(0) + '%';
+    renderAgentFactors(agent);
+    var findingsEl = document.getElementById('agd-findings');
+    var riskEl     = document.getElementById('agd-risks');
+    if ((agent.key_findings||[]).length) {
+        findingsEl.innerHTML = '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--signal-buy);margin-bottom:4px;">Key Findings</div>' +
+            (agent.key_findings||[]).map(function(f) { return '<div style="font-size:0.78rem;color:var(--fg-2);margin-bottom:3px;">• ' + escapeHtml(f) + '</div>'; }).join('');
+    } else { findingsEl.innerHTML = ''; }
+    if ((agent.risks||[]).length) {
+        riskEl.innerHTML = '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--signal-sell);margin-bottom:4px;">Risks</div>' +
+            (agent.risks||[]).map(function(r) { return '<div style="font-size:0.78rem;color:var(--fg-2);margin-bottom:3px;">• ' + escapeHtml(r) + '</div>'; }).join('');
+    } else { riskEl.innerHTML = ''; }
+    document.getElementById('agd-reasoning').textContent = agent.reasoning || '';
+    overlay.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAgentDetail(evt) {
+    if (evt && evt.target !== document.getElementById('agent-detail-overlay')) return;
+    var overlay = document.getElementById('agent-detail-overlay');
+    if (overlay) overlay.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function copyConsensus(btn) {
+    if (lastConsensusText) {
+        navigator.clipboard.writeText(lastConsensusText).then(function() {
+            btn.classList.add('copied');
+            btn.textContent = '已复制';
+            setTimeout(function() {
+                btn.classList.remove('copied');
+                btn.textContent = '复制摘要';
+            }, 2000);
+        });
+    }
+}
+
+function addCurrentToWatchlist() {
+    var btn = document.getElementById('stocks-watchlist-btn');
+    var ticker = (btn && btn.getAttribute('data-ticker')) || (lastAnalysisData && lastAnalysisData.ticker);
+    if (!ticker) { showToast(_t('stocks-no-ticker', '请先分析一只股票'), 'warning'); return; }
+    var md = lastAnalysisData && lastAnalysisData.market_data ? lastAnalysisData.market_data : {};
+    var body = {ticker: ticker};
+    if (md.pe && md.pe > 0) body.pe = md.pe;
+    if (md.roe && md.roe > 0) body.roe = md.roe;
+    if (md.price && md.price > 0) body.price = md.price;
+    if (md.market_cap && md.market_cap > 0) body.market_cap = md.market_cap;
+    fetch('/api/watchlist/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).then(function(r) {
+        if (r.ok) {
+            showToast(ticker + ' ' + _t('stocks-added-watchlist', '已加入自选股'), 'success');
+            if (btn) { btn.textContent = '✓ Watchlist'; btn.disabled = true; }
+        } else {
+            r.json().then(function(d) {
+                showToast((d && d.detail) ? d.detail : _t('stocks-watchlist-error', '添加失败'), 'error');
+            });
+        }
+    }).catch(function() {
+        showToast(_t('stocks-watchlist-error', '添加失败'), 'error');
+    });
+}
+
+function exportJSON() {
+    if (!lastAnalysisData) { showToast('请先运行分析', 'warning'); return; }
+    var blob = new Blob([JSON.stringify(lastAnalysisData, null, 2)], {type: 'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (lastAnalysisData.ticker || 'augur') + '_analysis.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('JSON 已导出');
+}
+
+function exportFullJSON() {
+    if (!lastAnalysisData) { showToast('请先运行分析', 'warning'); return; }
+    var blob = new Blob([JSON.stringify(lastAnalysisData, null, 2)], {type: 'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (lastAnalysisData.ticker || 'augur') + '_full_report.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('JSON 报告已导出');
+}
+
+function exportCSV() {
+    if (!lastAnalysisData || !lastAnalysisData.agents) { showToast('请先运行分析', 'warning'); return; }
+    var agents = lastAnalysisData.agents;
+    var header = 'Agent ID,Agent Name,Signal,Score,Confidence,Key Findings\n';
+    var rows = agents.map(function(a) {
+        var findings = (a.key_findings || []).join('; ').replace(/"/g, '""');
+        return [
+            a.agent_id || '',
+            '"' + (a.agent_name || '').replace(/"/g, '""') + '"',
+            a.signal || '',
+            (a.score || 0).toFixed(1),
+            ((a.confidence || 0) * 100).toFixed(0) + '%',
+            '"' + findings + '"'
+        ].join(',');
+    }).join('\n');
+    var csv = header + rows;
+    var blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (lastAnalysisData.ticker || 'augur') + '_masters_scores.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV 已导出');
+}
+
+function toggleReasoning(el) {
+    var div = el.previousElementSibling;
+    if (div) {
+        div.classList.toggle('expanded');
+        var isExpanded = div.classList.contains('expanded');
+        var collapseLbl = (typeof window.t === 'function') ? window.t('stocks-collapse') : '收起';
+        var expandLbl = (typeof window.t === 'function') ? window.t('stocks-expand') : '展开';
+        el.textContent = isExpanded ? collapseLbl : expandLbl;
+        el.setAttribute('aria-label', isExpanded
+            ? ((typeof window.t === 'function') ? window.t('stocks-collapse-reasoning') : '收起推理')
+            : ((typeof window.t === 'function') ? window.t('stocks-expand-reasoning') : '展开推理'));
+    }
+}
+
+function toggleAllAgents(expand) {
+    document.querySelectorAll('.agent-reasoning').forEach(function(div) {
+        if (expand) div.classList.add('expanded');
+        else div.classList.remove('expanded');
+    });
+    var collapseLbl = (typeof window.t === 'function') ? window.t('stocks-collapse') : '收起';
+    var expandLbl = (typeof window.t === 'function') ? window.t('stocks-expand') : '展开';
+    document.querySelectorAll('.expand-btn').forEach(function(btn) {
+        btn.textContent = expand ? collapseLbl : expandLbl;
+    });
+}
+
+function renderResults(data) {
+    var cons = data.consensus;
+    var agents = data.agents || [];
+    var ticker = data.ticker || '';
+
+    lastConsensusText = ticker + ' 共识分析:\n信号: ' + signalLabel(cons.signal) + '\n评分: ' + (cons.score||0).toFixed(1) + '/10\n置信度: ' + ((cons.confidence||0)*100).toFixed(0) + '%\n' + (cons.reasoning || '');
+    lastAnalysisData = data;  // save for JSON export
+
+    // Show watchlist button
+    var wlBtn = document.getElementById('stocks-watchlist-btn');
+    if (wlBtn) { wlBtn.style.display = ''; wlBtn.setAttribute('data-ticker', ticker); }
+
+    // Save to recent tickers and update URL
+    _saveRecentTicker(ticker);
+    try {
+        if (window.history && window.history.pushState) {
+            window.history.pushState({ticker: ticker}, '', '/stocks?ticker=' + encodeURIComponent(ticker));
+        }
+    } catch(e) {}
+
+    // Header updates
+    document.getElementById('an-ticker').textContent = ticker;
+    // Company name from the provider; hidden entirely when unavailable instead of
+    // repeating the ticker next to itself.
+    var anNameEl = document.getElementById('an-name');
+    var anCompany = (data.market_data && data.market_data.name) ? data.market_data.name : '';
+    anNameEl.textContent = anCompany;
+    anNameEl.title = anCompany;
+    anNameEl.style.display = anCompany ? '' : 'none';
+    document.getElementById('an-price').textContent = data.market_data && data.market_data.price ? '$' + data.market_data.price.toFixed(2) : '--';
+    
+    // ExecCard updates
+    var score = cons.score || 0;
+    var pct = Math.round(score * 10);
+    document.getElementById('exec-ring').style.setProperty('--pct', pct);
+    document.getElementById('exec-score').textContent = score.toFixed(1);
+    
+    var sigEl = document.getElementById('exec-signal');
+    var sigClass = (cons.signal==='bullish')?'buy':(cons.signal==='bearish')?'sell':'neutral';
+    sigEl.className = 'verdict ' + sigClass;
+    sigEl.textContent = signalLabel(cons.signal);
+    
+    document.getElementById('exec-conf').textContent = ((cons.confidence||0)*100).toFixed(0) + '%';
+    
+    var posPct = cons.metadata && cons.metadata.position_sizing
+        ? (cons.metadata.position_sizing.position_pct || 0).toFixed(1) + '%'
+        : '--';
+    document.getElementById('exec-kelly').textContent = posPct;
+    
+    document.getElementById('exec-pe').textContent = data.market_data && data.market_data.pe ? data.market_data.pe.toFixed(1) : '--';
+    
+    // Signal counts
+    var bull=0, neu=0, bear=0;
+    agents.forEach(function(a) {
+        var s = (a.signal||'').toLowerCase();
+        if (s==='bullish') bull++;
+        else if (s==='bearish') bear++;
+        else if (s==='neutral') neu++;
+    });
+    document.getElementById('vote-bull').textContent = bull;
+    document.getElementById('vote-neu').textContent = neu;
+    document.getElementById('vote-bear').textContent = bear;
+
+    // Divergence badge
+    var divBadge = document.getElementById('divergence-badge');
+    var divData = data.divergence || (cons.metadata && cons.metadata.divergence);
+    if (divBadge && divData && divData.is_divergent) {
+        var divScore = (divData.score * 100).toFixed(0);
+        document.getElementById('divergence-label').textContent =
+            'Agent Divergence — ' + divData.bullish_count + 'B / ' + divData.bearish_count + 'Br  (' + divScore + '% split)';
+        divBadge.style.display = 'block';
+    } else if (divBadge) {
+        divBadge.style.display = 'none';
+    }
+
+    // OracleSays
+    var oracleMsg = 'The council has spoken. <b style="color:var(--gilt-bright)">' + ticker + '</b> draws a <b style="color:var(--signal-' + (sigClass==='neutral'?'warn':sigClass) + ')">' + signalLabel(cons.signal) + '</b> omen — score ' + score.toFixed(1) + ', confidence ' + ((cons.confidence||0)*100).toFixed(0) + '%. The Kelly oracle counsels a <b style="color:var(--gilt-bright)">' + posPct + '</b> position. <br><br>' + escapeHtml(cons.reasoning || '');
+    document.getElementById('oracle-says').innerHTML = oracleMsg;
+
+    // ScorecardGrid
+    var scGrid = document.getElementById('sc-grid');
+    scGrid.innerHTML = '';
+    var sortedAgents = agents.slice().sort(function(a,b) { return (b.score||0)-(a.score||0); });
+    sortedAgents.forEach(function(m) {
+        var s = m.score || 0;
+        var cls = s >= 8 ? 'score-5' : s >= 6.5 ? 'score-4' : s >= 4.5 ? 'score-3' : s >= 2.5 ? 'score-2' : 'score-1';
+        var scoreSz = s >= 8 ? '1.15rem' : s >= 6.5 ? '1.05rem' : '0.95rem';
+        var sigCls = m.signal==='bullish'?'buy':m.signal==='bearish'?'sell':'neutral';
+        var sigLbl = signalLabel(m.signal);
+
+        var d = document.createElement('div');
+        d.className = 'sc';
+        d.style.cursor = 'pointer';
+        d.setAttribute('title', m.agent_name + ' — 点击查看详情');
+        d.setAttribute('data-agent-id', m.agent_id);
+        d.innerHTML = '<img src="/static/images/avatars/' + m.agent_id + '.png" class="avatar" width="34" height="34" alt="" onerror="this.src=\'/static/images/augur-owl-64.png\'"/>' +
+            '<div class="sc-nm">' + escapeHtml(m.agent_name) + '</div>' +
+            '<div class="sc-score ' + cls + '" style="font-size:' + scoreSz + '">' + s.toFixed(1) + '</div>' +
+            '<span class="signal-badge ' + sigCls + '" style="font-size:0.56rem;padding:1px 7px">' + sigLbl + '</span>';
+        (function(agent) {
+            d.addEventListener('click', function() { showAgentDetail(agent); });
+        })(m);
+        scGrid.appendChild(d);
+    });
+
+    // Debate (Findings vs Risks)
+    var dBull = document.getElementById('debate-bull');
+    dBull.innerHTML = '';
+    (cons.key_findings || []).forEach(function(f) {
+        var li = document.createElement('li');
+        li.textContent = f;
+        dBull.appendChild(li);
+    });
+    
+    var dBear = document.getElementById('debate-bear');
+    dBear.innerHTML = '';
+    (cons.risks || []).forEach(function(r) {
+        var li = document.createElement('li');
+        li.textContent = r;
+        dBear.appendChild(li);
+    });
+
+    // Render historical comparison (hidden div but kept functional)
+    renderHistoryComparison(ticker);
+    loadHistoryChart(ticker);
+
+    // Auto-generate report if requested via URL param
+    if (window._autoReport) {
+        window._autoReport = false;
+        generateReport();
+    }
+}
+
+function generateReport() {
+    var ticker = document.getElementById('inp-ticker').value.trim().toUpperCase();
+    if (!ticker) { showToast('请先输入股票代码', 'warning'); return; }
+
+    // Reveal report section with an explicit loading state so the user knows
+    // generation is in progress (the report can take a while to compute).
+    var section = document.getElementById('report-section');
+    var loading = document.getElementById('report-loading');
+    var content = document.getElementById('report-content');
+    var btn = document.getElementById('gen-report-btn');
+    if (content) content.innerHTML = '';
+    if (loading) loading.style.display = 'flex';
+    if (section) { section.style.display = 'block'; section.scrollIntoView({behavior: 'smooth'}); }
+    if (btn) { btn.disabled = true; }
+    startProgress('report-progress', { stages: [
+        _t('progress-report-1'),
+        _t('progress-report-2'),
+        _t('progress-report-3'),
+        _t('progress-report-4')
+    ]});
+    showToast('正在生成深度报告...', 'info');
+
+    // If we already have analysis data, use POST to avoid re-running agents
+    if (lastAnalysisData && lastAnalysisData.ticker === ticker) {
+        fetchWithTimeout('/api/report/' + ticker, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(lastAnalysisData)
+        }, 90000)
+        .then(function(r) {
+            if (!r.ok) {
+                return r.json().then(function(e) { throw new Error(e.detail || ('HTTP ' + r.status)); },
+                                     function() { throw new Error('HTTP ' + r.status); });
+            }
+            return r.json();
+        })
+        .then(function(data) { handleReportResponse(data); })
+        .catch(function(err) { showReportError(err); });
+        return;
+    }
+
+    // No cached data - use GET (will run full analysis)
+    var params = new URLSearchParams({auto_fetch: hasUserMetrics() ? 'false' : 'true'});
+    if (hasUserMetrics()) {
+        params.set('price', num('inp-price'));
+        params.set('pe', num('inp-pe'));
+        params.set('pb', num('inp-pb'));
+        params.set('gross_margins', num('inp-gm') / 100);
+        params.set('operating_margins', num('inp-om') / 100);
+        params.set('roe', num('inp-roe') / 100);
+        params.set('debt_ratio', num('inp-debt') / 100);
+        params.set('revenue_growth', num('inp-revg') / 100);
+        params.set('earnings_growth', num('inp-epsg') / 100);
+        params.set('fcf', num('inp-fcf') / 10);
+        params.set('market_cap', num('inp-mktcap') / 10);
+        params.set('sector', document.getElementById('inp-sector').value);
+        params.set('industry', document.getElementById('inp-industry').value || '');
+    }
+
+    fetchWithTimeout('/api/report/' + ticker + '?' + params, {}, 90000)
+        .then(function(r) {
+            if (!r.ok) {
+                return r.json().then(function(e) { throw new Error(e.detail || ('HTTP ' + r.status)); },
+                                     function() { throw new Error('HTTP ' + r.status); });
+            }
+            return r.json();
+        })
+        .then(function(data) { handleReportResponse(data); })
+        .catch(function(err) { showReportError(err); });
+}
+
+function showReportError(err) {
+    stopProgress('report-progress');
+    var msg = (err && err.name === 'AbortError')
+        ? '报告生成超时（超过 90 秒），请稍后重试。'
+        : (err && err.message ? err.message : err);
+    showToast('报告生成失败: ' + msg, 'error');
+    var section = document.getElementById('report-section');
+    var loading = document.getElementById('report-loading');
+    var content = document.getElementById('report-content');
+    var btn = document.getElementById('gen-report-btn');
+    if (loading) loading.style.display = 'none';
+    if (btn) btn.disabled = false;
+    if (section && content) {
+        content.innerHTML = '<div class="error-panel"><div class="error-panel-title">报告生成失败</div>' +
+            '<div class="error-panel-msg">' + escapeHtml('' + msg) + '<br>请检查股票代码是否有效，或先运行一次"分析"后再试。</div>' +
+            '<div class="error-panel-retry"><button class="btn btn-sm" onclick="generateReport()">重试</button></div></div>';
+        section.style.display = 'block';
+        section.scrollIntoView({behavior: 'smooth'});
+    }
+}
+
+function handleReportResponse(data) {
+    stopProgress('report-progress');
+    var loading = document.getElementById('report-loading');
+    var btn = document.getElementById('gen-report-btn');
+    if (loading) loading.style.display = 'none';
+    if (btn) btn.disabled = false;
+    if (data.status === 'ok' && data.report) {
+        lastReportMarkdown = data.report;
+        // Update the "View Full Report" link
+        var ticker = document.getElementById('inp-ticker').value.trim().toUpperCase();
+        var fullReportLink = document.getElementById('view-full-report-link');
+        if (fullReportLink && ticker) {
+            fullReportLink.href = '/report/' + ticker;
+        }
+        // Render score gauge
+        renderReportScoreGauge(lastAnalysisData);
+        // Render visual components
+        renderVisualReport(data.report, lastAnalysisData);
+        // Also render full markdown in the collapsible section
+        document.getElementById('report-content').innerHTML = renderReportMarkdown(data.report);
+        document.getElementById('report-full-text-wrapper').style.display = 'block';
+        document.getElementById('report-section').style.display = 'block';
+        document.getElementById('report-section').scrollIntoView({behavior:'smooth'});
+        showToast('深度报告已生成');
+    } else {
+        showReportError(new Error(data.detail || 'unknown error'));
+    }
+}
+
+function renderKeyMetricsPanel(data) {
+    var existing = document.getElementById('key-metrics-strip');
+    if (existing) existing.remove();
+    if (!data || !data.market_data) return;
+    var md = data.market_data;
+    var metrics = [];
+    if (md.price) metrics.push({label: 'Price', value: '$' + md.price.toFixed(2)});
+    if (md.pe) metrics.push({label: 'PE', value: md.pe.toFixed(1)});
+    if (md.pb) metrics.push({label: 'PB', value: md.pb.toFixed(2)});
+    if (md.roe) metrics.push({label: 'ROE', value: (md.roe * 100).toFixed(1) + '%'});
+    if (md.gross_margins) metrics.push({label: 'Gross Margin', value: (md.gross_margins * 100).toFixed(1) + '%'});
+    if (md.revenue_growth) metrics.push({label: 'Rev Growth', value: (md.revenue_growth * 100).toFixed(1) + '%'});
+    if (md.market_cap) {
+        var cap = md.market_cap;
+        var capStr = cap >= 1 ? cap.toFixed(1) + 'B' : (cap * 1000).toFixed(0) + 'M';
+        metrics.push({label: 'Market Cap', value: '$' + capStr});
+    }
+    if (md.sector) metrics.push({label: 'Sector', value: md.sector});
+    if (md.industry) metrics.push({label: 'Industry', value: md.industry});
+    if (metrics.length === 0) return;
+    var html = '<div class="key-metrics-strip" id="key-metrics-strip">';
+    metrics.forEach(function(m) {
+        html += '<div class="km-item"><span class="km-label">' + escapeHtml(m.label) + '</span><span class="km-value">' + escapeHtml(m.value) + '</span></div>';
+    });
+    html += '</div>';
+    var consCard = document.getElementById('consensus-card');
+    if (consCard) {
+        consCard.insertAdjacentHTML('beforebegin', html);
+    }
+}
+
+function renderVisualReport(markdownText, analysisData) {
+    var container = document.getElementById('report-visual');
+    if (!container) return;
+    if (!markdownText && !analysisData) return;
+    container.innerHTML = '';
+
+    // 1. Executive Summary - parse from markdown or use analysisData
+    var execHtml = buildExecutiveSummary(markdownText, analysisData);
+    if (execHtml) container.innerHTML += execHtml;
+
+    // 2. Score Cards Grid - use structured data from analysisData
+    var scoreHtml = buildScoreCards(analysisData);
+    if (scoreHtml) container.innerHTML += scoreHtml;
+
+    // 3. Bull vs Bear Debate
+    var debateHtml = buildDebateLayout(markdownText);
+    if (debateHtml) container.innerHTML += debateHtml;
+
+    // 4. Risk Matrix Cards
+    var riskHtml = buildRiskCards(markdownText, analysisData);
+    if (riskHtml) container.innerHTML += riskHtml;
+}
+
+function buildExecutiveSummary(md, data) {
+    // Try to extract from consensus in analysisData
+    var signal = '--', score = '--', grade = '--', position = '--';
+    if (data && data.consensus) {
+        var cons = data.consensus;
+        signal = signalLabel(cons.signal);
+        score = (cons.score || 0).toFixed(1) + '/10';
+        var s = cons.score || 0;
+        if (s >= 8) grade = 'A+';
+        else if (s >= 7) grade = 'A';
+        else if (s >= 6) grade = 'B+';
+        else if (s >= 5) grade = 'B';
+        else if (s >= 4) grade = 'C';
+        else grade = 'D';
+        if (cons.metadata && cons.metadata.position_sizing) {
+            position = (cons.metadata.position_sizing.position_pct || 0).toFixed(1) + '%';
+        }
+    }
+
+    // Also try to extract reasoning from the markdown verdict section
+    var verdictText = '';
+    var verdictMatch = md.match(/##\s*(?:投资委员会综合裁决|Executive\s+Summary)([\s\S]*?)(?=\n##\s|\n---|\n\*\*\*|$)/i);
+    if (verdictMatch) {
+        var lines = verdictMatch[1].trim().split('\n').filter(function(l) { return l.trim(); });
+        verdictText = lines.slice(0, 3).join(' ').replace(/[#*_`]/g, '').trim();
+    }
+
+    var signalClass = 'highlight';
+    if (data && data.consensus) {
+        var sig = (data.consensus.signal || '').toLowerCase();
+        if (sig === 'bullish') signalClass = 'buy';
+        else if (sig === 'bearish') signalClass = 'sell';
+        else if (sig === 'neutral') signalClass = 'neutral';
+    }
+
+    var html = '<div class="report-executive-card">';
+    html += '<div class="exec-header"><span style="font-size:1.1rem;">&#x1F3DB;</span><span class="exec-title">Investment Committee Verdict</span></div>';
+    html += '<div class="report-executive-metrics">';
+    html += '<div class="exec-metric"><div class="exec-metric-label">Signal</div><div class="exec-metric-value ' + signalClass + '">' + escapeHtml(signal) + '</div></div>';
+    html += '<div class="exec-metric"><div class="exec-metric-label">Score</div><div class="exec-metric-value highlight">' + escapeHtml(score) + '</div></div>';
+    html += '<div class="exec-metric"><div class="exec-metric-label">Grade</div><div class="exec-metric-value highlight">' + escapeHtml(grade) + '</div></div>';
+    html += '<div class="exec-metric"><div class="exec-metric-label">Position</div><div class="exec-metric-value highlight">' + escapeHtml(position) + '</div></div>';
+    if (data && data.consensus && data.consensus.confidence) {
+        html += '<div class="exec-metric"><div class="exec-metric-label">Confidence</div><div class="exec-metric-value highlight">' + ((data.consensus.confidence * 100).toFixed(0)) + '%</div></div>';
+    }
+    html += '</div>';
+    if (verdictText) {
+        html += '<div style="margin-top:14px; font-size:0.8rem; color:var(--text-secondary); line-height:1.6;">' + escapeHtml(verdictText.substring(0, 300)) + '</div>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function buildScoreCards(data) {
+    if (!data || !data.agents || data.agents.length === 0) return '';
+    var agents = data.agents.slice().sort(function(a, b) { return (b.score || 0) - (a.score || 0); });
+
+    var html = '<div class="report-section-label">&#x1F4CA; 18 Masters Score Board</div>';
+    html += '<div class="report-scorecard-grid">';
+    agents.forEach(function(agent) {
+        var score = agent.score || 0;
+        var scoreClass = score > 7 ? 'score-high' : (score >= 5 ? 'score-mid' : 'score-low');
+        var signal = signalLabel(agent.signal);
+        var sigClass = 'sig-neutral';
+        var sl = (agent.signal || '').toLowerCase();
+        if (sl === 'bullish') sigClass = 'sig-buy';
+        else if (sl === 'bearish') sigClass = 'sig-sell';
+        var conf = ((agent.confidence || 0) * 100).toFixed(0);
+        var barColor = sl === 'bullish' ? 'var(--signal-buy)' : (sl === 'bearish' ? 'var(--signal-sell)' : 'var(--signal-neutral)');
+
+        html += '<div class="report-scorecard">';
+        html += '<div class="sc-name" title="' + escapeHtml(agent.agent_name) + '">' + escapeHtml(agent.agent_name) + '</div>';
+        var styleKey = AGENT_STYLE_MAP[agent.agent_id] || '';
+        if (styleKey) {
+            var styleTag = (typeof window.t === 'function') ? window.t(styleKey) : styleKey;
+            html += '<div class="sc-style-tag">' + escapeHtml(styleTag) + '</div>';
+        }
+        html += '<div class="sc-score ' + scoreClass + '">' + score.toFixed(1) + '</div>';
+        html += '<span class="sc-signal ' + sigClass + '">' + signal + '</span>';
+        html += '<div class="sc-confidence">' + conf + '% conf</div>';
+        html += '<div class="sc-bar"><div class="sc-bar-fill" style="width:' + ((score / 10) * 100).toFixed(0) + '%; background:' + barColor + ';"></div></div>';
+        html += '</div>';
+    });
+    html += '</div>';
+    return html;
+}
+
+function buildDebateLayout(md) {
+    try {
+    // Look for the debate section
+    var debateMatch = md.match(/##\s*(?:多空辩论|Bull.*Bear|Debate)([\s\S]*?)(?=\n##\s|\n---|\n\*\*\*|$)/i);
+    if (!debateMatch) return '';
+
+    var debateContent = debateMatch[1];
+
+    // Extract bull points (multi-party / bullish arguments)
+    var bullPoints = [];
+    var bearPoints = [];
+
+    // Try to find subsections
+    var bullMatch = debateContent.match(/###?\s*(?:多方论点|多方|Bull|Bullish|看多)([\s\S]*?)(?=###?\s|$)/i);
+    var bearMatch = debateContent.match(/###?\s*(?:空方论点|空方|最谨慎方|Bear|Bearish|看空|Cautious)([\s\S]*?)(?=###?\s|$)/i);
+
+    if (bullMatch) {
+        bullPoints = extractListItems(bullMatch[1]);
+    }
+    if (bearMatch) {
+        bearPoints = extractListItems(bearMatch[1]);
+    }
+
+    // If no subsections found, split by numbered items or bullets
+    if (bullPoints.length === 0 && bearPoints.length === 0) {
+        var allItems = extractListItems(debateContent);
+        // Split roughly in half - first half bull, second half bear
+        var mid = Math.ceil(allItems.length / 2);
+        bullPoints = allItems.slice(0, mid);
+        bearPoints = allItems.slice(mid);
+    }
+
+    if (bullPoints.length === 0 && bearPoints.length === 0) return '';
+
+    var html = '<div class="report-debate-section">';
+    html += '<div class="debate-title">&#x2694; Bull vs Bear Debate</div>';
+    html += '<div class="report-debate-layout">';
+
+    // Bull side
+    html += '<div class="report-debate-bull">';
+    html += '<div class="debate-panel-title"><span>&#x1F4C8;</span> Bullish Arguments</div>';
+    html += '<ul class="debate-points">';
+    bullPoints.forEach(function(p) {
+        html += '<li>' + escapeHtml(p) + '</li>';
+    });
+    if (bullPoints.length === 0) html += '<li style="color:var(--text-muted);">No bull arguments found</li>';
+    html += '</ul></div>';
+
+    // Bear side
+    html += '<div class="report-debate-bear">';
+    html += '<div class="debate-panel-title"><span>&#x1F4C9;</span> Bearish Arguments</div>';
+    html += '<ul class="debate-points">';
+    bearPoints.forEach(function(p) {
+        html += '<li>' + escapeHtml(p) + '</li>';
+    });
+    if (bearPoints.length === 0) html += '<li style="color:var(--text-muted);">No bear arguments found</li>';
+    html += '</ul></div>';
+
+    html += '</div></div>';
+    return html;
+    } catch(e) { return ''; }
+}
+
+function buildRiskCards(md, data) {
+    // Parse risk matrix from markdown
+    var riskMatch = md.match(/##\s*(?:共识与风险矩阵|风险矩阵|Risk\s*Matrix|Risks)([\s\S]*?)(?=\n##\s|\n---|\n\*\*\*|$)/i);
+    var risks = [];
+
+    if (riskMatch) {
+        // Try table format first: | risk | severity | description |
+        var tableRows = riskMatch[1].match(/\|(.+)\|/g);
+        if (tableRows && tableRows.length > 2) {
+            // Skip header and separator
+            for (var i = 2; i < tableRows.length; i++) {
+                var cells = tableRows[i].split('|').map(function(c) { return c.trim(); }).filter(function(c) { return c; });
+                if (cells.length >= 2) {
+                    risks.push({
+                        title: cells[0],
+                        desc: cells.length >= 3 ? cells[2] : cells[1],
+                        severity: cells.length >= 2 ? guessSeverity(cells[1]) : 'medium'
+                    });
+                }
+            }
+        }
+        // Fallback: extract list items as risks
+        if (risks.length === 0) {
+            var items = extractListItems(riskMatch[1]);
+            items.forEach(function(item) {
+                risks.push({title: item, desc: '', severity: 'medium'});
+            });
+        }
+    }
+
+    // Also pull risks from analysisData consensus
+    if (risks.length === 0 && data && data.consensus && data.consensus.risks) {
+        data.consensus.risks.forEach(function(r) {
+            risks.push({title: r, desc: '', severity: 'medium'});
+        });
+    }
+
+    if (risks.length === 0) return '';
+
+    var html = '<div class="report-risk-section">';
+    html += '<div class="risk-title">&#x26A0; Risk Matrix</div>';
+    html += '<div class="report-risk-grid">';
+    risks.slice(0, 8).forEach(function(risk) {
+        var sevClass = 'risk-severity-' + risk.severity;
+        html += '<div class="report-risk-card">';
+        html += '<div class="risk-card-title">' + escapeHtml(risk.title) + '</div>';
+        if (risk.desc) html += '<div class="risk-card-desc">' + escapeHtml(risk.desc) + '</div>';
+        html += '<span class="risk-card-severity ' + sevClass + '">' + risk.severity.toUpperCase() + '</span>';
+        html += '</div>';
+    });
+    html += '</div></div>';
+    return html;
+}
+
+function extractListItems(text) {
+    var items = [];
+    var lines = text.split('\n');
+    lines.forEach(function(line) {
+        var trimmed = line.trim();
+        // Match numbered items (1. ...) or bullet points (- ... / * ...)
+        var match = trimmed.match(/^(?:\d+[\.\)]\s*|[-*]\s+)(.+)/);
+        if (match) {
+            var content = match[1].replace(/\*\*/g, '').replace(/\*/g, '').trim();
+            if (content.length > 5) items.push(content);
+        }
+    });
+    return items;
+}
+
+function guessSeverity(text) {
+    var lower = (text || '').toLowerCase();
+    if (lower.match(/高|high|严重|critical/)) return 'high';
+    if (lower.match(/低|low|轻微|minor/)) return 'low';
+    return 'medium';
+}
+
+function createScoreGauge(score, maxScore) {
+    maxScore = maxScore || 10;
+    var pct = Math.min(Math.max(score / maxScore, 0), 1);
+    var angle = pct * 180;
+    var r = 40, cx = 50, cy = 50;
+    var color;
+    if (score <= 3) color = '#ff5252';
+    else if (score <= 6) color = '#ffca28';
+    else color = '#00c853';
+    var startAngle = Math.PI;
+    var endAngle = Math.PI + (angle * Math.PI / 180);
+    var x1 = cx + r * Math.cos(startAngle);
+    var y1 = cy + r * Math.sin(startAngle);
+    var x2 = cx + r * Math.cos(endAngle);
+    var y2 = cy + r * Math.sin(endAngle);
+    var largeArc = angle > 180 ? 1 : 0;
+    var trackStroke = reportThemeColor('--report-chart-track', 'rgba(255,255,255,0.1)');
+    var svg = '<svg width="100" height="60" viewBox="0 0 100 60">';
+    svg += '<path d="M ' + (cx - r) + ' ' + cy + ' A ' + r + ' ' + r + ' 0 0 1 ' + (cx + r) + ' ' + cy + '" fill="none" stroke="' + trackStroke + '" stroke-width="8" stroke-linecap="round"/>';
+    if (angle > 0.5) {
+        svg += '<path d="M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) + ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) + '" fill="none" stroke="' + color + '" stroke-width="8" stroke-linecap="round"/>';
+    }
+    svg += '<text x="' + cx + '" y="' + (cy - 5) + '" text-anchor="middle" fill="' + color + '" font-size="16" font-weight="700" font-family="var(--font-data)">' + score.toFixed(1) + '</text>';
+    var subLabelFill = reportThemeColor('--report-text-muted', reportThemeColor('--text-secondary', 'rgba(255,255,255,0.5)'));
+    svg += '<text x="' + cx + '" y="' + (cy + 8) + '" text-anchor="middle" fill="' + subLabelFill + '" font-size="8">/ ' + maxScore + '</text>';
+    svg += '</svg>';
+    return svg;
+}
+
+function renderReportScoreGauge(data) {
+    var container = document.getElementById('report-score-gauge');
+    if (!container) return;
+    if (!data || !data.consensus) { container.style.display = 'none'; return; }
+    var score = data.consensus.score || 0;
+    var signal = data.consensus.signal || 'neutral';
+    var confidence = data.consensus.confidence || 0;
+    var ticker = data.ticker || '';
+    var signalLabel = signal === 'bullish' ? 'BUY' : signal === 'bearish' ? 'SELL' : 'HOLD';
+    var signalColor = signal === 'bullish' ? 'var(--signal-buy)' : signal === 'bearish' ? 'var(--signal-sell)' : 'var(--signal-neutral)';
+    container.style.display = 'flex';
+    container.innerHTML = '<div style="font-weight:700; font-size:1.1rem; font-family:var(--font-data); color:var(--accent-orange);">' + escapeHtml(ticker) + '</div>'
+        + '<div style="margin-left:12px;">' + createScoreGauge(score, 10) + '</div>'
+        + '<div style="margin-left:12px;"><span style="font-size:0.9rem; font-weight:700; color:' + signalColor + ';">' + signalLabel + '</span>'
+        + '<div style="font-size:0.7rem; color:var(--text-muted);">Confidence: ' + (confidence * 100).toFixed(0) + '%</div></div>';
+}
+
+function downloadReportAsHTML() {
+    var ticker = document.getElementById('inp-ticker').value.trim().toUpperCase() || 'report';
+    if (!lastReportMarkdown) { showToast(_t('report-toast-no-report'), 'warning'); return; }
+    var renderedBody = renderReportMarkdown(lastReportMarkdown);
+    var date = new Date().toISOString().slice(0, 10);
+    var filename = ticker + '_augur_report_' + date + '.html';
+    var htmlDoc = buildReportHTMLExport(ticker, renderedBody);
+    var blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(_t('report-toast-html-downloaded'));
+}
+
+function downloadPDF() {
+    if (!lastReportMarkdown) { showToast(_t('report-toast-no-report'), 'warning'); return; }
+    prepareReportPrint();
+}
+
+function toggleFullReportText(el) {
+    var content = document.getElementById('report-full-text-content');
+    if (!content) return;
+    el.classList.toggle('open');
+    content.classList.toggle('expanded');
+}
+
+function copyReport() {
+    if (lastReportMarkdown) {
+        navigator.clipboard.writeText(lastReportMarkdown).then(function() {
+            showToast('报告已复制到剪贴板');
+        });
+    } else {
+        showToast('暂无报告内容', 'warning');
+    }
+}
+
+function downloadReport() {
+    var ticker = document.getElementById('inp-ticker').value.trim().toUpperCase() || 'report';
+    if (lastReportMarkdown) {
+        var date = new Date().toISOString().slice(0,10);
+        var filename = ticker + '_augur_report_' + date + '.md';
+        var blob = new Blob([lastReportMarkdown], {type: 'text/markdown;charset=utf-8'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('报告已下载');
+    } else {
+        showToast('暂无报告内容', 'warning');
+    }
+}
+
+function closeReport() {
+    document.getElementById('report-section').style.display = 'none';
+}
+
+function copyReportLink() {
+    var ticker = document.getElementById('inp-ticker').value.trim().toUpperCase() || '';
+    var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    var url = window.location.origin + '/stocks?ticker=' + ticker + '&ts=' + ts;
+    navigator.clipboard.writeText(url).then(function() {
+        showToast('报告链接已复制');
+    }).catch(function() {
+        showToast('复制失败', 'error');
+    });
+}
+
+var _historyChart = null;
+var _historyChartTicker = null;
+var _historyRecords = [];
+var _historyRange = 0; // 0 = all, N = last N days
+
+// Re-render history chart when theme changes
+document.addEventListener('augur:theme-change', function() {
+    if (_historyChartTicker && _historyRecords.length) renderHistoryChart(_historyRecords);
+});
+
+function setHistoryRange(days) {
+    _historyRange = days;
+    var btn30 = document.getElementById('chart-range-30');
+    var btnAll = document.getElementById('chart-range-all');
+    if (btn30) btn30.style.opacity = days === 30 ? '1' : '0.5';
+    if (btnAll) btnAll.style.opacity = days === 0 ? '1' : '0.5';
+    if (_historyRecords.length) renderHistoryChart(_historyRecords);
+}
+
+function renderHistoryChart(records) {
+    var container = document.getElementById('history-chart-container');
+    if (!container) return;
+    var filtered = records;
+    if (_historyRange > 0) {
+        var cutoff = Date.now() - _historyRange * 24 * 60 * 60 * 1000;
+        filtered = records.filter(function(r) { return new Date(r.timestamp).getTime() >= cutoff; });
+    }
+    if (filtered.length < 2) { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+    var panel = document.getElementById('history-comparison');
+    if (panel) panel.style.display = 'block';
+
+    var labels = filtered.map(function(r) {
+        return new Date(r.timestamp).toLocaleDateString(undefined, {month:'short', day:'numeric'});
+    });
+    var scores = filtered.map(function(r) { return +r.score.toFixed(2); });
+    function _cv(n, fb) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || fb; }
+    var buyColor  = _cv('--signal-buy',  '#00c853');
+    var sellColor = _cv('--signal-sell', '#ff1744');
+    var holdColor = _cv('--accent-orange','#ff9500');
+    var tickColor = _cv('--text-muted',  'rgba(180,180,180,0.7)');
+    var gridColor = _cv('--border-color','rgba(255,255,255,0.05)');
+
+    var ptColors = filtered.map(function(r) {
+        return r.signal === 'bullish' ? buyColor : r.signal === 'bearish' ? sellColor : holdColor;
+    });
+
+    var canvas = document.getElementById('history-chart-canvas');
+    var popup = document.getElementById('history-point-popup');
+    if (_historyChart) { _historyChart.destroy(); _historyChart = null; }
+    _historyChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: scores,
+                borderColor: holdColor + '99',
+                backgroundColor: holdColor + '0f',
+                pointBackgroundColor: ptColors,
+                pointBorderColor: ptColors,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                tension: 0.35,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            onClick: function(evt, elements) {
+                if (!elements || !elements.length || !popup) return;
+                var idx = elements[0].index;
+                var rec = filtered[idx];
+                if (!rec) return;
+                var date = new Date(rec.timestamp).toLocaleString();
+                var signal = rec.signal === 'bullish' ? 'BUY' : rec.signal === 'bearish' ? 'SELL' : 'HOLD';
+                var sigColor = rec.signal === 'bullish' ? buyColor : rec.signal === 'bearish' ? sellColor : holdColor;
+                popup.style.display = 'block';
+                popup.innerHTML =
+                    '<span style="color:var(--text-muted);font-size:0.68rem;">' + escapeHtml(date) + '</span>' +
+                    ' &nbsp;|&nbsp; ' +
+                    '<span style="font:700 0.85rem var(--font-data);color:' + sigColor + ';">' + rec.score.toFixed(1) + '</span>' +
+                    '<span style="color:var(--text-muted);font-size:0.72rem;">/10</span>' +
+                    ' &nbsp;<span style="color:' + sigColor + ';font-size:0.72rem;font-weight:600;">' + signal + '</span>';
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function(ctx) { return 'Score: ' + ctx.parsed.y.toFixed(1); } } },
+                annotation: undefined
+            },
+            scales: {
+                y: {
+                    min: 0, max: 10,
+                    ticks: { color: tickColor, stepSize: 2, font: { size: 10 } },
+                    grid: { color: gridColor }
+                },
+                x: {
+                    ticks: { color: tickColor, maxRotation: 0, font: { size: 10 } },
+                    grid: { display: false }
+                }
+            }
+        },
+        plugins: [{
+            id: 'thresholdLines',
+            afterDraw: function(chart) {
+                var ctx2 = chart.ctx;
+                var yAxis = chart.scales.y;
+                var xLeft = chart.chartArea.left;
+                var xRight = chart.chartArea.right;
+                [[7.5, buyColor, 'BUY'], [2.5, sellColor, 'SELL']].forEach(function(cfg) {
+                    var y = yAxis.getPixelForValue(cfg[0]);
+                    ctx2.save();
+                    ctx2.setLineDash([4, 4]);
+                    ctx2.strokeStyle = cfg[1] + '66';
+                    ctx2.lineWidth = 1;
+                    ctx2.beginPath();
+                    ctx2.moveTo(xLeft, y);
+                    ctx2.lineTo(xRight, y);
+                    ctx2.stroke();
+                    ctx2.setLineDash([]);
+                    ctx2.fillStyle = cfg[1] + 'aa';
+                    ctx2.font = '9px monospace';
+                    ctx2.fillText(cfg[2], xRight - 28, y - 2);
+                    ctx2.restore();
+                });
+            }
+        }]
+    });
+    setHistoryRange(_historyRange);
+}
+
+function loadHistoryChart(ticker) {
+    _historyChartTicker = ticker;
+    fetch('/api/history?ticker=' + encodeURIComponent(ticker) + '&limit=60')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            _historyRecords = (data && data.records) ? data.records.slice().reverse() : [];
+            renderHistoryChart(_historyRecords);
+        })
+        .catch(function() { /* silently fail */ });
+}
+
+function renderHistoryComparison(ticker) {
+    var panel = document.getElementById('history-comparison');
+    var tbody = document.getElementById('history-tbody');
+    var emptyMsg = document.getElementById('history-empty');
+    if (!panel || !tbody) return;
+
+    var cached = augurCache.get();
+    var items = cached.filter(function(c) { return c.ticker === ticker; });
+
+    if (!items.length) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+    tbody.innerHTML = '';
+
+    if (items.length === 0) {
+        if (emptyMsg) emptyMsg.style.display = 'block';
+        return;
+    }
+
+    if (emptyMsg) emptyMsg.style.display = 'none';
+
+    items.sort(function(a, b) { return (b.time || 0) - (a.time || 0); });
+
+    items.forEach(function(item) {
+        var date = item.time ? new Date(item.time).toLocaleDateString() : '--';
+        var score = (item.result && item.result.score) ? item.result.score.toFixed(1) : '--';
+        var signal = (item.result && item.result.signal) || 'neutral';
+        var signalText = signal === 'bullish' ? 'BUY' : signal === 'bearish' ? 'SELL' : 'HOLD';
+        var sigClass = signal === 'bullish' ? 'signal-badge-buy' : signal === 'bearish' ? 'signal-badge-sell' : 'signal-badge-neutral';
+        var price = (item.result && item.result.price) ? '$' + item.result.price.toFixed(2) : '--';
+
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td style="font-size:0.78rem;">' + escapeHtml(date) + '</td>' +
+            '<td style="font-family:var(--font-data); color:var(--accent-orange);">' + score + '</td>' +
+            '<td><span class="signal-badge ' + sigClass + '" style="font-size:0.68rem;">' + signalText + '</span></td>' +
+            '<td style="font-family:var(--font-data); font-size:0.78rem;">' + escapeHtml(price) + '</td>';
+        tbody.appendChild(tr);
+    });
+}
+
+// Close agent detail modal on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var overlay = document.getElementById('agent-detail-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+            overlay.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    }
+});
+</script>
+{% endblock %}

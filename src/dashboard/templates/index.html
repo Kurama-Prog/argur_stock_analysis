@@ -1,0 +1,2085 @@
+{% extends "base.html" %}
+{% block title %}Augur - Dashboard{% endblock %}
+{% block extra_head %}
+<style>
+.hero-input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-family: var(--font-data);
+    width: 100%;
+    max-width: 400px;
+    text-transform: uppercase;
+}
+.hero-input:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 2px rgba(255,140,0,0.15);
+}
+/* Sector Performance Heatmap */
+.sector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+}
+.sector-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 10px;
+    text-align: center;
+    transition: transform 0.15s, border-color 0.15s;
+    cursor: default;
+}
+.sector-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-orange);
+}
+.sector-card .sector-name {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+.sector-card .sector-ticker {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+    font-family: var(--font-data);
+}
+.sector-card .sector-price {
+    font-size: 0.88rem;
+    font-family: var(--font-data);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 4px 0 2px;
+}
+.sector-card .sector-change {
+    font-size: 0.78rem;
+    font-family: var(--font-data);
+    font-weight: 600;
+}
+/* Heatmap coloring */
+.sector-card.heat-strong-up { background: rgba(0, 200, 83, 0.15); border-color: rgba(0, 200, 83, 0.3); }
+.sector-card.heat-up { background: rgba(0, 200, 83, 0.08); border-color: rgba(0, 200, 83, 0.15); }
+.sector-card.heat-strong-down { background: rgba(255, 23, 68, 0.15); border-color: rgba(255, 23, 68, 0.3); }
+.sector-card.heat-down { background: rgba(255, 23, 68, 0.08); border-color: rgba(255, 23, 68, 0.15); }
+
+/* Top Movers */
+.movers-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+@media (max-width: 600px) {
+    .movers-row { grid-template-columns: 1fr; }
+}
+.movers-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+}
+.movers-title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.movers-title.gainers { color: var(--signal-buy); }
+.movers-title.losers { color: var(--signal-sell); }
+.mover-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+}
+.mover-item:last-child { border-bottom: none; }
+.mover-item:hover { background: var(--bg-hover); }
+.mover-symbol {
+    font-weight: 600;
+    font-family: var(--font-data);
+    font-size: 0.82rem;
+    color: var(--text-primary);
+}
+.mover-name {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mover-change {
+    font-weight: 600;
+    font-family: var(--font-data);
+    font-size: 0.82rem;
+}
+
+/* Consensus Leaderboard */
+.leaderboard-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.leaderboard-item:hover { background: var(--bg-hover); }
+.leaderboard-item:last-child { border-bottom: none; }
+.leaderboard-rank {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--accent-orange);
+    min-width: 20px;
+}
+.leaderboard-ticker {
+    font-weight: 600;
+    font-family: var(--font-data);
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    min-width: 60px;
+}
+.leaderboard-score {
+    font-family: var(--font-data);
+    font-size: 0.82rem;
+    color: var(--accent-orange);
+    font-weight: 600;
+}
+.leaderboard-time {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+/* Market Breadth */
+.breadth-bar-wrap {
+    background: var(--bg-primary);
+    border-radius: 4px;
+    height: 24px;
+    overflow: hidden;
+    display: flex;
+    border: 1px solid var(--border-color);
+}
+.breadth-bar-advance {
+    background: var(--signal-buy);
+    height: 100%;
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--bg-void);
+}
+.breadth-bar-decline {
+    background: var(--signal-sell);
+    height: 100%;
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--bg-void);
+}
+.breadth-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* Market Pulse Strip */
+.market-pulse-strip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.pulse-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-right: 1px solid var(--border-color);
+    min-width: 0;
+    flex-shrink: 0;
+}
+.pulse-item:last-child { border-right: none; }
+.pulse-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.pulse-value {
+    font-size: 0.82rem;
+    font-family: var(--font-data);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.pulse-arrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+.pulse-arrow.up { color: var(--signal-buy); }
+.pulse-arrow.down { color: var(--signal-sell); }
+.pulse-arrow.flat { color: var(--text-muted); }
+.pulse-pct {
+    font-size: 0.68rem;
+    font-family: var(--font-data);
+}
+
+/* Sector mini bar */
+.sector-bar-wrap {
+    margin-top: 6px;
+    background: var(--bg-primary);
+    border-radius: 2px;
+    height: 4px;
+    overflow: hidden;
+    width: 100%;
+}
+.sector-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+}
+
+/* International Markets Panel */
+.intl-markets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+.intl-market-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.intl-market-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-orange);
+}
+.intl-market-region {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-orange);
+    margin-bottom: 4px;
+}
+.intl-market-name {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+.intl-market-price {
+    font-size: 0.92rem;
+    font-family: var(--font-data);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.intl-market-change {
+    font-size: 0.75rem;
+    font-family: var(--font-data);
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* Fear Greed SVG Gauge */
+.fg-gauge-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+}
+.fg-gauge-value {
+    font-size: 1.6rem;
+    font-family: var(--font-data);
+    font-weight: 700;
+    margin-top: -30px;
+}
+.fg-gauge-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-top: 4px;
+}
+.fg-gauge-sublabel {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Skeleton for new panels */
+.pulse-skeleton {
+    height: 42px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    animation: pulse 1.5s infinite;
+}
+.intl-skeleton {
+    height: 80px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    animation: pulse 1.5s infinite;
+}
+
+/* Responsive rules for new panels */
+@media (max-width: 768px) {
+    .market-pulse-strip {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 8px 10px;
+    }
+    .pulse-item {
+        padding: 4px 8px;
+    }
+    .intl-markets-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .sector-grid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    }
+    .fg-gauge-wrap svg {
+        width: 160px;
+        height: 90px;
+    }
+}
+@media (max-width: 480px) {
+    .intl-markets-grid {
+        grid-template-columns: 1fr;
+    }
+    .market-pulse-strip {
+        gap: 2px;
+    }
+    .pulse-item {
+        padding: 3px 6px;
+        gap: 4px;
+    }
+    .pulse-label { font-size: 0.6rem; }
+    .pulse-value { font-size: 0.72rem; }
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- First-run onboarding banner (dismissible, remembered via localStorage) -->
+<div class="onboard-banner" id="onboard-banner" style="display:none;" role="region" aria-labelledby="onboard-title">
+    <span class="onboard-icon">&#x1F44B;</span>
+    <div class="onboard-body">
+        <div class="onboard-title" id="onboard-title" data-i18n="onboard-title">欢迎使用 Augur — 你的 18 位 AI 投资大师智囊团</div>
+        <div class="onboard-desc" data-i18n="onboard-desc">只需输入一个股票代码（如 AAPL），系统会自动获取实时财务数据，让 18 位大师从各自视角独立打分，并形成共识买/卖/持建议。无需手动填写任何财务指标。下方点一下示例即可立即体验 ↓</div>
+        <button class="btn btn-sm onboard-cta" type="button" onclick="tryExample('AAPL')" data-i18n="onboard-try-aapl">立即体验 AAPL</button>
+    </div>
+    <button class="onboard-close" onclick="dismissOnboard()" data-i18n-title="onboard-close-aria" title="不再显示" data-i18n-aria="onboard-close-aria" aria-label="关闭引导">&times;</button>
+</div>
+
+<!-- Status Bar -->
+<div class="status-bar">
+    <div class="status-bar-item">
+        <span class="label">Agents</span>
+        <span class="value">{{ agent_count }}</span>
+    </div>
+    <div class="status-bar-item">
+        <span class="label">Models</span>
+        <span class="value" id="model-count">--</span>
+    </div>
+    <div class="status-bar-item">
+        <span class="label">Status</span>
+        <span class="value" style="color:var(--signal-buy);">ACTIVE</span>
+    </div>
+    <div class="status-bar-item">
+        <span class="label">Engine</span>
+        <span class="value">v8.1.0</span>
+    </div>
+</div>
+
+<!-- Bloomberg-style home layout controls -->
+<div class="home-customize-bar flex items-center justify-between mb-12" id="home-customize-bar">
+    <span class="home-customize-label" data-i18n="home-terminal-layout">Terminal Layout</span>
+    <button type="button" class="btn btn-sm btn-ghost" id="home-customize-btn"
+            onclick="toggleHomeCustomize()" aria-pressed="false"
+            data-i18n="home-customize-btn">Customize</button>
+</div>
+
+<!-- Pinned watchlist strip (workspace-aware) -->
+<div class="home-watchlist-wrap mb-16" id="home-watchlist-wrap" aria-live="polite"
+     data-i18n-aria="a11y-home-watchlist" aria-label="Pinned watchlist">
+    <div class="home-watchlist-strip" id="home-watchlist-strip">
+        <div class="home-watchlist-skeleton"></div>
+    </div>
+</div>
+
+<!-- Hero Quick Analysis -->
+<section class="hero hero-section gilt-edge mb-24" id="hero-section">
+    <div class="hero-glow"></div>
+    <img src="/static/images/augur-owl-128.png" class="pixelated hero-owl" width="92" height="92" alt=""/>
+    <div class="hero-eyebrow">▸ AI Investment Oracle</div>
+    <h1 class="hero-title">Summon your council of <span>18 masters</span></h1>
+    <p class="hero-sub" data-i18n="hero-subtitle">输入股票代码，一键获得18位大师共识</p>
+    
+    <div class="hero-input">
+        <input class="field mono" id="hero-ticker" type="text"
+               data-i18n="hero-placeholder"
+               placeholder="Enter ticker — NVDA, AAPL, TSLA…"
+               data-i18n-aria="a11y-hero-ticker"
+               aria-label="Stock ticker input"
+               aria-describedby="hero-ticker-hint"
+               oninput="clearTickerInvalid('hero-ticker')"
+               onkeydown="if(event.key==='Enter') heroGo()">
+        <button class="pixel-btn dark" id="hero-analyze-btn" onclick="heroGo()">
+            ▶ <span data-i18n="btn-analyze">Consult</span>
+        </button>
+    </div>
+    
+    <p class="hero-examples-hint" style="margin-top:12px; font-size:0.75rem; color:var(--text-muted);" data-i18n="hero-examples-hint">💡 第一次用？点下面任意一个，无需填写财务指标，系统自动获取实时数据：</p>
+    <div class="hero-chips" style="margin-top: 8px;" role="group" data-i18n-aria="a11y-hero-chips-group" aria-label="Example tickers">
+        <span data-i18n="hero-chips-try" style="font:500 0.68rem/1 var(--font-mono);color:var(--fg-3)">试试</span>
+        <span class="chip" role="button" tabindex="0" data-i18n-aria="a11y-chip-nvda" aria-label="Try NVDA example" onclick="tryExample('NVDA')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryExample('NVDA')}">NVDA</span>
+        <span class="chip chip-recommended" role="button" tabindex="0" data-i18n-aria="a11y-chip-aapl" aria-label="Try AAPL example" onclick="tryExample('AAPL')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryExample('AAPL')}">AAPL</span>
+        <span class="chip" role="button" tabindex="0" data-i18n-aria="a11y-chip-tsla" aria-label="Try TSLA example" onclick="tryExample('TSLA')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryExample('TSLA')}">TSLA</span>
+        <span class="chip" role="button" tabindex="0" data-i18n-aria="a11y-chip-msft" aria-label="Try MSFT example" onclick="tryExample('MSFT')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryExample('MSFT')}">MSFT</span>
+        <span class="chip" role="button" tabindex="0" data-i18n-aria="a11y-chip-btc" aria-label="Try BTC-USD example" onclick="tryExample('BTC-USD')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryExample('BTC-USD')}">BTC</span>
+        <span class="chip" role="button" tabindex="0" data-i18n-aria="a11y-chip-hk" aria-label="Try 00700.HK example" onclick="tryExample('00700.HK')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryExample('00700.HK')}">00700.HK</span>
+    </div>
+
+    <p id="hero-ticker-hint" class="field-hint" role="alert" style="display:none; margin-top:6px; font-size:0.75rem; color:var(--signal-sell);"></p>
+    <div class="shortcut-hint" style="margin-top:8px;" data-i18n="hero-shortcut-hint">按 / 快速聚焦 · Ctrl+Enter 提交</div>
+
+    <!-- Inline loading skeleton -->
+    <div id="hero-spinner" role="status" aria-live="polite" aria-busy="true" style="display:none; margin-top:16px; position:relative; z-index:2;">
+        <p class="loading-pulse text-orange text-mono progress-text" id="hero-progress" data-i18n="hero-progress">正在唤醒 18 位投资大师...</p>
+        <div class="grid-3 mt-16" style="gap:12px; max-width:600px;">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+    </div>
+
+    <!-- Inline result card -->
+    <div id="hero-result" class="inline-result" role="region" aria-live="polite" aria-labelledby="hero-result-heading" style="display:none; max-width:600px; margin:16px 0 0; position:relative; z-index:2; background:var(--bg-card); border-radius:var(--r-md); padding:16px; border:1px solid var(--border);">
+        <div id="hero-result-heading" class="sr-only" data-i18n="hero-result-heading">分析结果</div>
+        <div id="hr-title-row" style="display:none; margin-bottom:12px;">
+            <div id="hr-name" style="font:700 1.05rem/1.3 var(--font-data); color:var(--fg-1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+            <div id="hr-ticker" class="text-mono" style="font-size:0.75rem; color:var(--fg-3); margin-top:2px;"></div>
+        </div>
+        <div id="hr-data-warning" class="data-warning-banner" style="display:none; margin-bottom:12px; padding:8px 12px; font-size:0.75rem; background:rgba(255,171,0,0.1); border:1px solid rgba(255,171,0,0.3); border-radius:var(--radius-sm); color:var(--text-secondary);"></div>
+        <div class="flex items-center gap-24" style="flex-wrap:wrap;">
+            <div>
+                <div class="data-label" data-i18n="index-label-signal">信号</div>
+                <span id="hr-signal" class="signal-badge signal-badge-neutral signal-big">--</span>
+            </div>
+            <div>
+                <div class="data-label" data-i18n="index-label-score">评分</div>
+                <span id="hr-score" class="data-value" style="font-size:1.4rem;">--</span>
+            </div>
+            <div>
+                <div class="data-label" data-i18n="index-label-confidence">置信度</div>
+                <span id="hr-confidence" class="text-mono" style="color:var(--signal-neutral); font-weight:600; font-size:1.1rem;">--</span>
+            </div>
+        </div>
+        <div id="hr-reasoning" class="text-muted" style="font-size:0.8rem; margin-top:12px; line-height:1.6;"></div>
+        <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+            <a id="hr-link" href="/stocks" class="btn btn-sm"><span data-i18n="btn-detail">查看详情</span> &rarr;</a>
+            <a id="hr-report-link" href="/stocks" class="btn btn-sm btn-report-cta">&#x1F4C4; <span data-i18n="btn-report">深度报告</span></a>
+        </div>
+    </div>
+
+    <!-- Inline error -->
+    <div id="hero-error" class="error-panel" role="alert" aria-live="assertive" style="display:none; max-width:600px; margin:16px 0 0; position:relative; z-index:2;">
+        <div class="error-panel-title" data-i18n="hero-error-title">分析失败</div>
+        <div class="error-panel-msg" id="hero-error-msg"></div>
+        <div class="error-panel-retry">
+            <button class="pixel-btn dark" onclick="heroGo()" data-i18n="btn-retry">重试</button>
+        </div>
+    </div>
+</section>
+
+<!-- Market Pulse Strip (compact key metrics) -->
+<div class="home-panel mb-24" data-panel-id="market-pulse" id="home-panel-market-pulse">
+    <button type="button" class="home-panel-head" id="home-panel-head-market-pulse"
+            aria-expanded="true" aria-controls="home-panel-body-market-pulse"
+            onclick="toggleHomePanel('market-pulse')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="home-panel-market-pulse">Market Pulse</span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-market-pulse">
+        <div class="market-pulse-strip" id="market-pulse-strip" aria-live="polite" aria-busy="true" aria-label="Market pulse loading">
+            <div class="pulse-skeleton" style="width:100%; height:32px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid-4 mb-24">
+    {% for stat in stats %}
+    <div class="card stat-card" style="text-align:center; padding:20px 12px;">
+        <div class="data-value">{{ stat.value }}</div>
+        <div class="data-label" style="margin-top:4px;">{{ stat.label }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Global Market Overview (Bloomberg-style live board) -->
+<div class="home-panel mb-24" data-panel-id="market-board" id="home-panel-market-board">
+    <button type="button" class="home-panel-head home-panel-head-card" id="home-panel-head-market-board"
+            aria-expanded="true" aria-controls="home-panel-body-market-board"
+            onclick="toggleHomePanel('market-board')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-market-overview">Global Market Board</span>
+        <span class="home-panel-actions" onclick="event.stopPropagation()">
+            <span class="market-asof text-muted" id="market-asof" style="font-size:0.6rem; font-family:var(--font-mono);"></span>
+            <span role="button" tabindex="0" data-i18n-aria="btn-refresh" aria-label="Refresh market board" style="color:var(--fg-3);font:500 0.6rem/1 var(--font-mono); cursor:pointer;" onclick="loadMarketOverview(true)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();loadMarketOverview(true)}" id="market-refresh-btn" data-i18n-title="btn-refresh" title="Refresh">refresh 60s</span>
+        </span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-market-board">
+        <div class="aug-card" style="margin:0;">
+            <div class="mboard" id="market-board" aria-live="polite" aria-busy="true" aria-label="Global market board loading">
+                <div class="market-tile skeleton-tile"></div>
+                <div class="market-tile skeleton-tile"></div>
+                <div class="market-tile skeleton-tile"></div>
+                <div class="market-tile skeleton-tile"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hot Tickers: 热门标的实时行情 -->
+<div class="home-panel mb-24" data-panel-id="hot-tickers" id="home-panel-hot-tickers">
+    <button type="button" class="home-panel-head" id="home-panel-head-hot-tickers"
+            aria-expanded="true" aria-controls="home-panel-body-hot-tickers"
+            onclick="toggleHomePanel('hot-tickers')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-hot-tickers">热门标的实时行情</span>
+        <span class="home-panel-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-ghost" onclick="loadHotTickers(true)" id="hot-refresh-btn" data-i18n-title="btn-refresh" title="刷新">↻ <span data-i18n="btn-refresh">刷新</span></button>
+        </span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-hot-tickers">
+        <div class="hot-tickers-grid" id="hot-tickers-grid" aria-live="polite" aria-busy="true" aria-label="Hot tickers loading">
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Sector Performance Heatmap -->
+<div class="home-panel mb-24" data-panel-id="sector-perf" id="home-panel-sector-perf">
+    <button type="button" class="home-panel-head" id="home-panel-head-sector-perf"
+            aria-expanded="true" aria-controls="home-panel-body-sector-perf"
+            onclick="toggleHomePanel('sector-perf')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-sector-perf">板块行情</span>
+        <span class="home-panel-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-ghost" onclick="loadSectorPerformance(true)" id="sector-refresh-btn" data-i18n-title="btn-refresh" title="刷新">&#x21BB; <span data-i18n="btn-refresh">刷新</span></button>
+        </span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-sector-perf">
+        <div class="sector-grid" id="sector-grid" aria-live="polite" aria-busy="true" aria-label="Sector performance loading">
+            <div class="sector-card skeleton" style="height:80px;"></div>
+            <div class="sector-card skeleton" style="height:80px;"></div>
+            <div class="sector-card skeleton" style="height:80px;"></div>
+            <div class="sector-card skeleton" style="height:80px;"></div>
+            <div class="sector-card skeleton" style="height:80px;"></div>
+            <div class="sector-card skeleton" style="height:80px;"></div>
+            <div class="sector-card skeleton" style="height:80px;"></div>
+            <div class="sector-card skeleton" style="height:80px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- International Markets Panel -->
+<div class="home-panel mb-24" data-panel-id="intl-markets" id="home-panel-intl-markets">
+    <button type="button" class="home-panel-head" id="home-panel-head-intl-markets"
+            aria-expanded="true" aria-controls="home-panel-body-intl-markets"
+            onclick="toggleHomePanel('intl-markets')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-intl-markets">国际市场</span>
+        <span class="home-panel-meta text-muted" data-i18n="intl-regions">亚太 · 欧洲</span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-intl-markets">
+        <div class="intl-markets-grid" id="intl-markets-grid" aria-live="polite" aria-busy="true" aria-label="International markets loading">
+            <div class="intl-skeleton"></div>
+            <div class="intl-skeleton"></div>
+            <div class="intl-skeleton"></div>
+            <div class="intl-skeleton"></div>
+            <div class="intl-skeleton"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Crypto Overview Panel -->
+<div class="home-panel mb-24" data-panel-id="crypto" id="home-panel-crypto">
+    <button type="button" class="home-panel-head" id="home-panel-head-crypto"
+            aria-expanded="true" aria-controls="home-panel-body-crypto"
+            onclick="toggleHomePanel('crypto')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-crypto">Crypto Overview</span>
+        <span class="home-panel-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-ghost" onclick="loadCryptoOverview()" id="crypto-refresh-btn" data-i18n-title="btn-refresh" title="刷新">&#x21BB; <span data-i18n="btn-refresh">刷新</span></button>
+        </span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-crypto">
+        <div class="hot-tickers-grid" id="crypto-grid" aria-live="polite" aria-busy="true" aria-label="Crypto overview loading">
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+            <div class="hot-ticker-card skeleton" style="height:90px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Commodities & Treasury Rates Panel -->
+<div class="home-panel mb-24" data-panel-id="commodities-rates" id="home-panel-commodities-rates">
+    <button type="button" class="home-panel-head" id="home-panel-head-commodities-rates"
+            aria-expanded="true" aria-controls="home-panel-body-commodities-rates"
+            onclick="toggleHomePanel('commodities-rates')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-commodities-rates">Commodities &amp; Treasury Rates</span>
+        <span class="home-panel-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-ghost" onclick="loadCommoditiesAndRates()" id="commod-refresh-btn" data-i18n-title="btn-refresh" title="刷新">&#x21BB; <span data-i18n="btn-refresh">刷新</span></button>
+        </span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-commodities-rates">
+        <div class="movers-row" id="commodities-rates-row" aria-live="polite" aria-busy="true" aria-label="Commodities and treasury rates loading">
+            <div class="movers-section">
+                <div class="movers-title" style="color:var(--accent-orange);" data-i18n="commodities-label">💰 大宗商品</div>
+                <div id="commodities-list"><div class="panel-empty-state"><div class="empty-icon">&#x1F4B0;</div><div class="empty-msg" data-i18n="msg-loading">加载中...</div></div></div>
+            </div>
+            <div class="movers-section">
+                <div class="movers-title" style="color:var(--accent-orange);" data-i18n="treasury-label">📈 国债收益率</div>
+                <div id="treasury-list"><div class="panel-empty-state"><div class="empty-icon">&#x1F3E6;</div><div class="empty-msg" data-i18n="msg-loading">加载中...</div></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Movers (Gainers & Losers) -->
+<div class="home-panel mb-24" data-panel-id="top-movers" id="home-panel-top-movers">
+    <button type="button" class="home-panel-head" id="home-panel-head-top-movers"
+            aria-expanded="true" aria-controls="home-panel-body-top-movers"
+            onclick="toggleHomePanel('top-movers')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-top-movers">涨跌幅领先</span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-top-movers">
+        <div class="movers-row" id="movers-row" aria-live="polite" aria-label="Top movers">
+            <div class="movers-section">
+                <div class="movers-title gainers" data-i18n="movers-gainers">▲ 领涨</div>
+                <div id="gainers-list"><div class="panel-empty-state"><div class="empty-icon">&#x1F4C8;</div><div class="empty-msg" data-i18n="msg-loading">加载中...</div></div></div>
+            </div>
+            <div class="movers-section">
+                <div class="movers-title losers" data-i18n="movers-losers">▼ 领跌</div>
+                <div id="losers-list"><div class="panel-empty-state"><div class="empty-icon">&#x1F4C9;</div><div class="empty-msg" data-i18n="msg-loading">加载中...</div></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Market Breadth -->
+<div class="home-panel mb-24" data-panel-id="market-breadth" id="home-panel-market-breadth">
+    <button type="button" class="home-panel-head" id="home-panel-head-market-breadth"
+            aria-expanded="true" aria-controls="home-panel-body-market-breadth"
+            onclick="toggleHomePanel('market-breadth')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-market-breadth">市场宽度</span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-market-breadth">
+        <div class="card" style="padding:16px;" id="market-breadth-card">
+            <div class="text-muted" style="font-size:0.78rem;" data-i18n="market-breadth-note">基于热门标的涨跌统计</div>
+            <div class="breadth-bar-wrap" style="margin-top:8px;">
+                <div class="breadth-bar-advance" id="breadth-advance" style="width:50%;">--</div>
+                <div class="breadth-bar-decline" id="breadth-decline" style="width:50%;">--</div>
+            </div>
+            <div class="breadth-stats">
+                <span id="breadth-adv-label" data-i18n="breadth-advancing">上涨: --</span>
+                <span id="breadth-dec-label" data-i18n="breadth-declining">下跌: --</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fear & Greed + Macro Snapshot side by side -->
+<div class="home-panel mb-24" data-panel-id="fear-macro" id="home-panel-fear-macro">
+    <button type="button" class="home-panel-head" id="home-panel-head-fear-macro"
+            aria-expanded="true" aria-controls="home-panel-body-fear-macro"
+            onclick="toggleHomePanel('fear-macro')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="home-panel-fear-macro">Sentiment &amp; Macro</span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-fear-macro">
+        <div class="grid-2" id="fear-macro-row">
+            <div class="fear-greed-section" id="fear-greed-section">
+                <div class="section-title spaced" data-i18n="section-fear-greed">恐慌与贪婪指标</div>
+                <div class="card" style="padding:16px;" id="fear-greed-card" aria-live="polite" data-i18n-aria="a11y-fear-greed" aria-label="Fear and greed index">
+                    <div class="panel-empty-state"><div class="empty-icon">&#x1F4CA;</div><div class="empty-msg" data-i18n="msg-fear-greed-loading">恐慌贪婪数据加载中...</div></div>
+                </div>
+            </div>
+            <div class="macro-snapshot-section">
+                <div class="section-title spaced" data-i18n="section-macro">宏观经济快照</div>
+                <div class="macro-snapshot-grid" id="macro-snapshot-grid" aria-live="polite" aria-busy="true" data-i18n-aria="a11y-macro-snapshot" aria-label="Macro economic snapshot">
+                    <div class="macro-card skeleton" style="height:80px;"></div>
+                    <div class="macro-card skeleton" style="height:80px;"></div>
+                    <div class="macro-card skeleton" style="height:80px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Augur Consensus Leaderboard -->
+<div class="home-panel mb-24" data-panel-id="leaderboard" id="home-panel-leaderboard">
+    <button type="button" class="home-panel-head" id="home-panel-head-leaderboard"
+            aria-expanded="true" aria-controls="home-panel-body-leaderboard"
+            onclick="toggleHomePanel('leaderboard')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-leaderboard">Augur 共识排行榜</span>
+        <span class="home-panel-meta text-muted" data-i18n="leaderboard-note">基于本地分析历史</span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-leaderboard">
+        <div class="card" style="padding:0; overflow:hidden;" id="leaderboard-section">
+            <ul class="leaderboard-list" id="leaderboard-list">
+                <li class="leaderboard-item" style="justify-content:center; flex-wrap:wrap; gap:8px;">
+                    <span class="text-muted" style="font-size:0.78rem;" data-i18n="leaderboard-empty">尚无分析记录，去分析一只股票吧</span>
+                    <span class="chip chip-recommended" role="button" tabindex="0" data-i18n-aria="a11y-chip-aapl" aria-label="Try AAPL example" onclick="tryExample('AAPL')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryExample('AAPL')}">AAPL</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Recent & Featured Personas (Grid 2-1) -->
+<div class="home-panel mb-24" data-panel-id="recent-personas" id="home-panel-recent-personas">
+    <button type="button" class="home-panel-head" id="home-panel-head-recent-personas"
+            aria-expanded="true" aria-controls="home-panel-body-recent-personas"
+            onclick="toggleHomePanel('recent-personas')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="home-panel-recent-personas">Recent &amp; Masters</span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-recent-personas">
+        <div class="grid-2-1">
+            <div id="recent-section" class="aug-card" style="display:none;">
+                <div class="aug-card-head"><span data-i18n="section-recent">Recent Prophecies</span></div>
+                <ul class="recent" id="recent-list"></ul>
+            </div>
+
+            <div class="aug-card">
+                <div class="aug-card-head">
+                    <span data-i18n="section-featured-personas">Featured Masters</span>
+                    <a href="/personas" data-i18n="btn-view-all-personas" style="font:600 0.62rem/1 var(--font-pixfin);color:var(--amber);cursor:pointer;text-transform:uppercase">查看全部 18 位</a>
+                </div>
+                <div class="persona-chips mb-8" role="group" data-i18n-aria="a11y-persona-chips-group" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:0 12px 8px;">
+                    <span class="text-muted" style="font-size:0.68rem;" data-i18n="featured-personas-hint">想换视角？选一位大师，用 AAPL 快速体验</span>
+                    <span class="chip persona-chip" role="button" tabindex="0" data-i18n-aria="a11y-persona-chip-buffett" data-aria-name="Warren Buffett" aria-label="Analyze AAPL with Warren Buffett" onclick="tryPersona('buffett')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryPersona('buffett')}">Buffett</span>
+                    <span class="chip persona-chip" role="button" tabindex="0" data-i18n-aria="a11y-persona-chip-graham" data-aria-name="Benjamin Graham" aria-label="Analyze AAPL with Benjamin Graham" onclick="tryPersona('graham')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryPersona('graham')}">Graham</span>
+                    <span class="chip persona-chip" role="button" tabindex="0" data-i18n-aria="a11y-persona-chip-cathie_wood" data-aria-name="Cathie Wood" aria-label="Analyze AAPL with Cathie Wood" onclick="tryPersona('cathie_wood')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tryPersona('cathie_wood')}">Wood</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    {% for p in featured %}
+                    {% if loop.index <= 3 %}
+                    <div class="m-row" role="link" tabindex="0" data-i18n-aria="a11y-featured-persona" data-aria-name="{{ p.name }}" aria-label="Analyze with {{ p.name }}" onclick="window.location.href='/stocks?persona={{ p.id }}&ticker=AAPL'" onkeydown="if(event.key==='Enter'){event.preventDefault();window.location.href='/stocks?persona={{ p.id }}&ticker=AAPL'}">
+                        <img src="/static/images/avatars/{{ p.id }}.png" class="avatar" width="40" height="40" alt="{{ p.name }}" onerror="this.src='/static/images/augur-owl-64.png'">
+                        <div style="min-width:0;">
+                            <div style="font:600 0.85rem/1.2 var(--font-sans);color:var(--fg-1);">{{ p.name }}</div>
+                            <div style="font:600 0.58rem/1.3 var(--font-pixfin);color:var(--fg-3);text-transform:uppercase;" data-i18n="persona-style-{{ p.id }}">{{ p.style }}</div>
+                        </div>
+                        <span style="margin-left:auto;font:700 1rem/1 var(--font-mono);color:var(--amber);" data-i18n="persona-tag-{{ p.id }}">{{ p.tag }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Source Status (数据源状态) -->
+<div class="home-panel mb-24" data-panel-id="datasources" id="home-panel-datasources">
+    <button type="button" class="home-panel-head" id="home-panel-head-datasources"
+            aria-expanded="true" aria-controls="home-panel-body-datasources"
+            onclick="toggleHomePanel('datasources')">
+        <span class="home-panel-chevron" aria-hidden="true">▾</span>
+        <span class="home-panel-title" data-i18n="section-datasource">数据源状态</span>
+        <span class="home-panel-meta text-muted" id="ds-chain-label"></span>
+    </button>
+    <div class="home-panel-body" id="home-panel-body-datasources">
+        <div id="datasource-section">
+            <div class="datasource-grid" id="datasource-grid" aria-live="polite" aria-busy="true" aria-label="Data sources loading">
+                <div class="datasource-card skeleton" style="height:90px;"></div>
+                <div class="datasource-card skeleton" style="height:90px;"></div>
+                <div class="datasource-card skeleton" style="height:90px;"></div>
+                <div class="datasource-card skeleton" style="height:90px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- How it works -->
+<div class="section-title compact" data-i18n="section-how-it-works">工作原理</div>
+<div class="grid-3 mb-24">
+    <div class="card" style="text-align:center; padding:24px 16px;">
+        <div style="font-size:1.8rem; margin-bottom:8px;">&#x1F4CA;</div>
+        <h4 style="color:var(--accent-orange); font-size:0.88rem;" data-i18n="how-step1-title">1. 输入代码</h4>
+        <p class="text-muted" style="font-size:0.78rem; margin:0;" data-i18n="how-step1-desc">只需股票代码，系统自动获取实时数据（也可手动填指标）</p>
+    </div>
+    <div class="card" style="text-align:center; padding:24px 16px;">
+        <div style="font-size:1.8rem; margin-bottom:8px;">&#x1F916;</div>
+        <h4 style="color:var(--accent-orange); font-size:0.88rem;" data-i18n="how-step2-title">2. 多Agent分析</h4>
+        <p class="text-muted" style="font-size:0.78rem; margin:0;" data-i18n="how-step2-desc">{{ agent_count }} 位投资大师从各自视角独立分析</p>
+    </div>
+    <div class="card" style="text-align:center; padding:24px 16px;">
+        <div style="font-size:1.8rem; margin-bottom:8px;">&#x1F3AF;</div>
+        <h4 style="color:var(--accent-orange); font-size:0.88rem;" data-i18n="how-step3-title">3. 共识决策</h4>
+        <p class="text-muted" style="font-size:0.78rem; margin:0;" data-i18n="how-step3-desc">行业加权、机制感知，形成最终共识信号</p>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+var _heroGoBusy = false;
+var _sparklineQueue = [];
+var _sparklineInflight = 0;
+var _SPARKLINE_MAX = 3;
+var _homeWidgetsState = { pinned_tickers: [], collapsed_panels: [], quotes: [] };
+var _homeCustomizeMode = false;
+var _homeWidgetsSaveTimer = null;
+var _homeDefaultTicker = '';
+function _t(key, fb) { return (typeof window.t === 'function') ? window.t(key, fb) : (fb || key); }
+function _deferIndexLoad(fn, delay) {
+    var run = function() { fn(); };
+    var ms = delay || 0;
+    if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(function() { setTimeout(run, ms); }, { timeout: 3000 });
+    } else {
+        setTimeout(run, ms + 50);
+    }
+}
+function _macroCommentary(key, pct, thresholds) {
+    var up = thresholds[0], down = thresholds[1];
+    if (pct > up) return _t('macro-' + key + '-up');
+    if (pct < down) return _t('macro-' + key + '-down');
+    return _t('macro-' + key + '-flat');
+}
+function _fgLabel(index) {
+    if (index >= 75) return _t('fg-extreme-greed');
+    if (index >= 55) return _t('fg-greed');
+    if (index >= 45) return _t('fg-neutral');
+    if (index >= 25) return _t('fg-fear');
+    return _t('fg-extreme-fear');
+}
+function _syncPersonaLabels() {
+    document.querySelectorAll('[data-persona-style-id]').forEach(function(el) {
+        var val = _t('persona-style-' + el.getAttribute('data-persona-style-id'));
+        if (val) el.textContent = val;
+    });
+    document.querySelectorAll('[data-persona-tag-id]').forEach(function(el) {
+        var val = _t('persona-tag-' + el.getAttribute('data-persona-tag-id'));
+        if (val) el.textContent = val;
+    });
+}
+window._refreshIndexDynamicI18n = function() {
+    _syncPersonaLabels();
+    if (_marketOverviewData) {
+        renderFearGreed(_marketOverviewData);
+        renderMacroSnapshot(_marketOverviewData);
+        renderIntlMarkets(_marketOverviewData);
+    }
+    if (_hotTickersDataForMovers) renderMarketBreadth(_hotTickersDataForMovers);
+};
+function _scrollHeroPanel(elId) {
+    var el = document.getElementById(elId);
+    if (el && el.style.display !== 'none') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+function _showHeroDataWarning(msg) {
+    var warn = document.getElementById('hr-data-warning');
+    if (!warn) return;
+    if (msg) {
+        warn.textContent = msg;
+        warn.style.display = 'block';
+    } else {
+        warn.textContent = '';
+        warn.style.display = 'none';
+    }
+}
+function heroGo() {
+    var ticker = validateTickerInput('hero-ticker', 'hero-ticker-hint');
+    if (!ticker) return;
+    if (_heroGoBusy) return;
+    _heroGoBusy = true;
+    var heroBtn = document.getElementById('hero-analyze-btn');
+    var heroBtnLabel = heroBtn ? heroBtn.querySelector('[data-i18n]') : null;
+    var origBtnText = heroBtnLabel ? heroBtnLabel.textContent : '';
+    if (heroBtn) {
+        heroBtn.disabled = true;
+        heroBtn.classList.add('is-loading');
+        heroBtn.setAttribute('aria-busy', 'true');
+        if (heroBtnLabel) heroBtnLabel.textContent = (typeof window.t === 'function' ? window.t('btn-analyzing') : '分析中…');
+    }
+    function resetHeroBtn() {
+        _heroGoBusy = false;
+        if (heroBtn) {
+            heroBtn.disabled = false;
+            heroBtn.classList.remove('is-loading');
+            heroBtn.removeAttribute('aria-busy');
+            if (heroBtnLabel) heroBtnLabel.textContent = origBtnText || (typeof window.t === 'function' ? window.t('btn-analyze') : '分析');
+        }
+    }
+
+    // Show loading, hide previous results/errors
+    var spinner = document.getElementById('hero-spinner');
+    spinner.style.display = 'block';
+    spinner.setAttribute('aria-busy', 'true');
+    document.getElementById('hero-result').style.display = 'none';
+    document.getElementById('hero-error').style.display = 'none';
+    _showHeroDataWarning(null);
+    startProgress('hero-progress');
+    _scrollHeroPanel('hero-spinner');
+
+    fetchWithTimeout('/api/analyze/' + ticker, {}, 90000)
+        .then(function(r) {
+            if (!r.ok) {
+                return r.json().then(function(e) {
+                    throw new Error(e.detail || ('请求失败 (HTTP ' + r.status + ')'));
+                }, function() {
+                    throw new Error('请求失败 (HTTP ' + r.status + ')');
+                });
+            }
+            return r.json();
+        })
+        .then(function(data) {
+            stopProgress('hero-progress');
+            spinner.style.display = 'none';
+            spinner.setAttribute('aria-busy', 'false');
+            if (!data || !data.consensus) {
+                throw new Error(data && data.detail ? data.detail : '分析返回数据异常，请重试');
+            }
+            var cons = data.consensus || {};
+            var signal = (cons.signal || 'neutral').toLowerCase();
+
+            var sigEl = document.getElementById('hr-signal');
+            sigEl.textContent = signal === 'bullish' ? 'BUY' : signal === 'bearish' ? 'SELL' : 'HOLD';
+            sigEl.className = 'signal-badge signal-big ' + (signal === 'bullish' ? 'signal-badge-buy' : signal === 'bearish' ? 'signal-badge-sell' : 'signal-badge-neutral');
+
+            document.getElementById('hr-score').textContent = (cons.score || 0).toFixed(1) + '/10';
+            document.getElementById('hr-confidence').textContent = ((cons.confidence || 0) * 100).toFixed(0) + '%';
+            document.getElementById('hr-reasoning').textContent = cons.reasoning || '';
+
+            // Company name + ticker heading (hidden when the provider has no name)
+            var hrName = (data.market_data && data.market_data.name) ? data.market_data.name : '';
+            document.getElementById('hr-name').textContent = hrName;
+            document.getElementById('hr-name').title = hrName;
+            document.getElementById('hr-ticker').textContent = data.ticker || ticker;
+            document.getElementById('hr-title-row').style.display = hrName ? 'block' : 'none';
+
+            document.getElementById('hr-link').href = '/stocks?ticker=' + ticker;
+            document.getElementById('hr-report-link').href = '/stocks?ticker=' + ticker + '&report=1';
+
+            var warnMsg = data.data_error || data.data_note || null;
+            _showHeroDataWarning(warnMsg);
+
+            document.getElementById('hero-result').style.display = 'block';
+            _scrollHeroPanel('hero-result');
+
+            // Cache the result
+            augurCache.add(ticker, {
+                signal: cons.signal || 'neutral',
+                score: cons.score || 0,
+                confidence: cons.confidence || 0
+            });
+            renderRecentAnalyses();
+            renderLeaderboard();
+            resetHeroBtn();
+        })
+        .catch(function(err) {
+            stopProgress('hero-progress');
+            spinner.style.display = 'none';
+            spinner.setAttribute('aria-busy', 'false');
+            document.getElementById('hero-error').style.display = 'block';
+            _scrollHeroPanel('hero-error');
+            resetHeroBtn();
+            var msg = (err && err.name === 'AbortError')
+                ? _t('hero-error-timeout', 'Analysis timed out (90s). Try again or check backend/network.')
+                : _t('hero-error-request', 'Request failed: ') + (err.message || err);
+            document.getElementById('hero-error-msg').textContent = msg;
+        });
+}
+
+// One-click example: fill ticker and run immediately
+function tryExample(t) {
+    // Don't fire if analysis is already in progress
+    if (document.getElementById('hero-spinner').style.display !== 'none') return;
+    dismissOnboard();
+    var input = document.getElementById('hero-ticker');
+    if (input) { input.value = t; input.focus(); }
+    heroGo();
+    // Smooth scroll so the result/spinner is visible
+    var hero = document.getElementById('hero-section') || document.querySelector('.hero-section, .hero');
+    if (hero) hero.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// First-time persona demo: open stocks page with persona + AAPL pre-filled
+function tryPersona(personaId) {
+    dismissOnboard();
+    window.location.href = '/stocks?persona=' + encodeURIComponent(personaId) + '&ticker=AAPL';
+}
+
+// Onboarding banner show/dismiss (remembered in localStorage)
+function dismissOnboard() {
+    var b = document.getElementById('onboard-banner');
+    if (b) b.style.display = 'none';
+    try { localStorage.setItem('augur-onboard-dismissed', '1'); } catch (e) {}
+}
+
+// ====== Bloomberg-style home widgets ======
+function loadHomeWorkspace() {
+    return fetch('/api/workspace')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status !== 'ok' || !data.workspace) return;
+            var ticker = (data.workspace.default_ticker || '').trim().toUpperCase();
+            _homeDefaultTicker = ticker;
+            var input = document.getElementById('hero-ticker');
+            if (input && ticker && !input.value.trim()) {
+                input.value = ticker;
+            }
+        })
+        .catch(function() {});
+}
+
+function loadHomeWidgets() {
+    return fetch('/api/home/widgets')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status !== 'ok') return;
+            _homeWidgetsState.pinned_tickers = data.pinned_tickers || [];
+            _homeWidgetsState.collapsed_panels = (data.widgets && data.widgets.collapsed_panels) || [];
+            _homeWidgetsState.quotes = data.quotes || [];
+            applyHomePanelState();
+            renderPinnedWatchlistStrip();
+        })
+        .catch(function() {});
+}
+
+function applyHomePanelState() {
+    var collapsed = _homeWidgetsState.collapsed_panels || [];
+    document.querySelectorAll('.home-panel[data-panel-id]').forEach(function(panel) {
+        var panelId = panel.getAttribute('data-panel-id');
+        var head = document.getElementById('home-panel-head-' + panelId);
+        var body = document.getElementById('home-panel-body-' + panelId);
+        if (!head || !body) return;
+        var isCollapsed = collapsed.indexOf(panelId) !== -1;
+        body.classList.toggle('is-collapsed', isCollapsed);
+        panel.classList.toggle('is-collapsed', isCollapsed);
+        head.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+    });
+}
+
+function toggleHomePanel(panelId) {
+    var body = document.getElementById('home-panel-body-' + panelId);
+    var head = document.getElementById('home-panel-head-' + panelId);
+    var panel = document.getElementById('home-panel-' + panelId);
+    if (!body || !head) return;
+    var willCollapse = !body.classList.contains('is-collapsed');
+    body.classList.toggle('is-collapsed', willCollapse);
+    if (panel) panel.classList.toggle('is-collapsed', willCollapse);
+    head.setAttribute('aria-expanded', willCollapse ? 'false' : 'true');
+    var collapsed = _homeWidgetsState.collapsed_panels || [];
+    var idx = collapsed.indexOf(panelId);
+    if (willCollapse && idx === -1) collapsed.push(panelId);
+    if (!willCollapse && idx !== -1) collapsed.splice(idx, 1);
+    _homeWidgetsState.collapsed_panels = collapsed;
+    scheduleSaveHomeWidgets();
+}
+
+function homePanelHeadKey(event, panelId) {
+    if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleHomePanel(panelId);
+    }
+}
+
+function scheduleSaveHomeWidgets() {
+    if (_homeWidgetsSaveTimer) clearTimeout(_homeWidgetsSaveTimer);
+    _homeWidgetsSaveTimer = setTimeout(saveHomeWidgets, 350);
+}
+
+function saveHomeWidgets() {
+    return fetch('/api/home/widgets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            pinned_tickers: _homeWidgetsState.pinned_tickers || [],
+            collapsed_panels: _homeWidgetsState.collapsed_panels || []
+        })
+    })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'ok') {
+                _homeWidgetsState.pinned_tickers = data.pinned_tickers || _homeWidgetsState.pinned_tickers;
+                _homeWidgetsState.quotes = data.quotes || _homeWidgetsState.quotes;
+                renderPinnedWatchlistStrip();
+            }
+        })
+        .catch(function() {});
+}
+
+function toggleHomeCustomize() {
+    _homeCustomizeMode = !_homeCustomizeMode;
+    var btn = document.getElementById('home-customize-btn');
+    var wrap = document.getElementById('home-watchlist-wrap');
+    if (btn) {
+        btn.setAttribute('aria-pressed', _homeCustomizeMode ? 'true' : 'false');
+        btn.classList.toggle('is-active', _homeCustomizeMode);
+    }
+    if (wrap) wrap.classList.toggle('is-customizing', _homeCustomizeMode);
+    renderPinnedWatchlistStrip();
+}
+
+function renderPinnedWatchlistStrip() {
+    var strip = document.getElementById('home-watchlist-strip');
+    if (!strip) return;
+    var symbols = _homeWidgetsState.pinned_tickers || [];
+    var quotes = _homeWidgetsState.quotes || [];
+    if (!symbols.length) {
+        strip.innerHTML = '<div class="home-watchlist-empty">' + _t('home-watchlist-empty', 'Pin tickers in Customize mode') + '</div>';
+        return;
+    }
+    var quoteMap = {};
+    quotes.forEach(function(q) { if (q && q.symbol) quoteMap[q.symbol.toUpperCase()] = q; });
+    strip.innerHTML = '';
+    symbols.forEach(function(sym) {
+        var q = quoteMap[sym.toUpperCase()] || { symbol: sym };
+        var pct = q.change_pct;
+        var up = typeof pct === 'number' && pct > 0;
+        var down = typeof pct === 'number' && pct < 0;
+        var cls = up ? 'is-up' : (down ? 'is-down' : 'is-flat');
+        var pctStr = (typeof pct === 'number')
+            ? ((up ? '+' : '') + (pct * 100).toFixed(2) + '%')
+            : '--';
+        var priceStr = (typeof q.price === 'number')
+            ? q.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : '--';
+        var item = document.createElement('div');
+        item.className = 'home-watchlist-item ' + cls;
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.setAttribute('aria-label', sym + ' ' + priceStr);
+        item.innerHTML =
+            '<span class="hw-symbol">' + escapeHtml(sym) + '</span>' +
+            '<span class="hw-price">' + priceStr + '</span>' +
+            '<span class="hw-change">' + pctStr + '</span>' +
+            (_homeCustomizeMode
+                ? '<button type="button" class="hw-unpin" aria-label="Unpin ' + escapeHtml(sym) + '" title="Unpin">&times;</button>'
+                : '');
+        item.onclick = function(e) {
+            if (e.target && e.target.classList.contains('hw-unpin')) {
+                e.stopPropagation();
+                unpinHomeTicker(sym);
+                return;
+            }
+            var input = document.getElementById('hero-ticker');
+            if (input) {
+                input.value = sym;
+                input.focus();
+            }
+        };
+        item.onkeydown = function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                item.click();
+            }
+        };
+        var unpinBtn = item.querySelector('.hw-unpin');
+        if (unpinBtn) {
+            unpinBtn.onclick = function(e) {
+                e.stopPropagation();
+                unpinHomeTicker(sym);
+            };
+        }
+        strip.appendChild(item);
+    });
+}
+
+function pinHomeTicker(symbol) {
+    symbol = (symbol || '').trim().toUpperCase();
+    if (!symbol) return;
+    var list = (_homeWidgetsState.pinned_tickers || []).slice();
+    if (list.indexOf(symbol) === -1) list.unshift(symbol);
+    if (list.length > 12) list = list.slice(0, 12);
+    _homeWidgetsState.pinned_tickers = list;
+    saveHomeWidgets();
+}
+
+function unpinHomeTicker(symbol) {
+    symbol = (symbol || '').trim().toUpperCase();
+    _homeWidgetsState.pinned_tickers = (_homeWidgetsState.pinned_tickers || []).filter(function(s) {
+        return s.toUpperCase() !== symbol;
+    });
+    saveHomeWidgets();
+}
+
+// Load model count
+document.addEventListener('DOMContentLoaded', function() {
+    // Show onboarding banner only if not previously dismissed
+    try {
+        if (localStorage.getItem('augur-onboard-dismissed') !== '1') {
+            var b = document.getElementById('onboard-banner');
+            if (b) {
+                b.style.display = 'flex';
+                setTimeout(function() {
+                    var hero = document.getElementById('hero-section');
+                    var input = document.getElementById('hero-ticker');
+                    if (hero) hero.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (input) input.focus({ preventScroll: true });
+                }, 400);
+            }
+        }
+    } catch (e) {
+        var b2 = document.getElementById('onboard-banner');
+        if (b2) b2.style.display = 'flex';
+    }
+
+    _syncPersonaLabels();
+
+    loadHomeWorkspace();
+    loadHomeWidgets();
+
+    fetch('/api/models')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var el = document.getElementById('model-count');
+            if (el) el.textContent = (data.models || []).length || '--';
+        })
+        .catch(function() {
+            var el = document.getElementById('model-count');
+            if (el) el.textContent = '--';
+        });
+
+    // Show recent analyses from cache
+    renderRecentAnalyses();
+
+    // Priority: market board (feeds macro/fear-greed/pulse) + hot tickers (movers/breadth)
+    loadMarketOverview(false);
+    loadHotTickers(false);
+
+    // Defer below-fold / secondary panels to keep first paint responsive
+    _deferIndexLoad(loadDatasources, 150);
+    _deferIndexLoad(function() { loadSectorPerformance(false); }, 350);
+    _deferIndexLoad(loadCryptoOverview, 550);
+    _deferIndexLoad(loadCommoditiesAndRates, 750);
+
+    // Render leaderboard from cache
+    renderLeaderboard();
+});
+
+// ====== Global Market Overview board ======
+var _marketTimer = null;
+
+function loadMarketOverview(forceRefresh) {
+    var board = document.getElementById('market-board');
+    var btn = document.getElementById('market-refresh-btn');
+    if (btn) { btn.disabled = true; btn.classList.add('is-refreshing'); }
+    var url = '/api/market-overview' + (forceRefresh ? '?refresh=true' : '');
+    fetchWithTimeout(url, {}, 30000)
+        .then(function(r) { return r.json().catch(function() { return null; }); })
+        .then(function(data) {
+            if (btn) { btn.disabled = false; btn.classList.remove('is-refreshing'); }
+            if (!data) {
+                if (board) {
+                    board.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F4B9;</div><div class="empty-msg">' + _t('msg-data-format-error') + '</div><button class="btn btn-sm" onclick="loadMarketOverview(true)" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+                }
+                return;
+            }
+            renderMarketBoard(data);
+            var mb = document.getElementById('market-board'); if (mb) { mb.setAttribute('aria-busy', 'false'); }
+        })
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.classList.remove('is-refreshing'); }
+            if (board) {
+                board.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F4B9;</div><div class="empty-msg">' + _t('msg-load-failed-retry') + '</div><div class="empty-hint">' + _t('msg-yfinance-hint') + '</div><button class="btn btn-sm" onclick="loadMarketOverview(true)" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+                board.setAttribute('aria-busy', 'false');
+            }
+        });
+}
+
+function renderMarketBoard(data) {
+    var board = document.getElementById('market-board');
+    var asof = document.getElementById('market-asof');
+    if (!board) return;
+    var items = (data && data.items) || [];
+    if (!items.length) {
+        board.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F4B9;</div><div class="empty-msg">' +
+            ((data && data.note) || _t('msg-market-unavailable')) + '</div></div>';
+        return;
+    }
+    board.innerHTML = '';
+    items.forEach(function(it) {
+        var up = (it.change_pct || 0) >= 0;
+        var arrow = up ? '\u25B2' : '\u25BC';
+        var pct = ((it.change_pct || 0) * 100).toFixed(2);
+        var priceStr = (it.price || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        var tile = document.createElement('div');
+        tile.className = 'mtile ' + (up ? 'up' : 'down');
+        tile.innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
+                '<div class="nm">' + escapeHtml(it.name || '') + '</div>' +
+                '<div style="font:600 0.55rem/1 var(--font-pixfin);color:var(--fg-3);text-transform:uppercase;letter-spacing:.5px">' + escapeHtml(it.group || '') + '</div>' +
+            '</div>' +
+            '<div class="px">' + priceStr + '</div>' +
+            '<div class="ch">' + arrow + ' ' + (up ? '+' : '') + pct + '%</div>';
+        board.appendChild(tile);
+    });
+    if (asof && data.as_of) {
+        var d = new Date(data.as_of);
+        var srcLabel = data.source === 'partial' ? _t('msg-partial-data') : '';
+        asof.textContent = _t('msg-updated-at') + (isNaN(d.getTime()) ? data.as_of : d.toLocaleTimeString()) + srcLabel;
+    }
+    if (data.data_error && board) {
+        var hint = document.createElement('div');
+        hint.className = 'empty-hint';
+        hint.style.cssText = 'grid-column:1/-1; font-size:0.72rem; color:var(--text-muted); margin-top:4px;';
+        hint.textContent = data.data_error;
+        board.appendChild(hint);
+    }
+}
+
+// ====== Data Source Status ======
+function loadDatasources() {
+    var grid = document.getElementById('datasource-grid');
+    var chainLabel = document.getElementById('ds-chain-label');
+    if (!grid) return;
+    fetchWithTimeout('/api/datasources', {}, 15000)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data || !data.catalog) {
+                grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F50C;</div><div class="empty-msg">' + _t('msg-datasource-unavailable') + '</div></div>';
+                grid.setAttribute('aria-busy', 'false');
+                return;
+            }
+            var catalog = data.catalog;
+            var activeChain = data.active_chain || [];
+            if (chainLabel) {
+                chainLabel.textContent = _t('ds-active-chain') + activeChain.join(' > ');
+            }
+            grid.innerHTML = '';
+            var keys = Object.keys(catalog);
+            keys.forEach(function(key) {
+                var src = catalog[key];
+                var isActive = src.active;
+                var card = document.createElement('div');
+                card.className = 'datasource-card';
+                card.innerHTML =
+                    '<div class="ds-card-head">' +
+                        '<span class="ds-card-name">' + escapeHtml(src.label) + '</span>' +
+                        '<span class="' + (isActive ? 'ds-badge-active' : 'ds-badge-inactive') + '">' +
+                            (isActive ? _t('ds-badge-active') : _t('ds-badge-inactive')) +
+                        '</span>' +
+                    '</div>' +
+                    '<div class="ds-card-coverage">' + escapeHtml(src.coverage || '') + '</div>' +
+                    '<div class="ds-card-footer">' +
+                        (src.needs_key
+                            ? '<span class="ds-key-badge">&#x1F511; API Key' + (src.env ? ' (' + src.env + ')' : '') + '</span>'
+                            : '<span class="ds-free-badge">&#x2705; ' + _t('ds-free') + '</span>') +
+                    '</div>';
+                grid.appendChild(card);
+            });
+            grid.setAttribute('aria-busy', 'false');
+        })
+        .catch(function() {
+            grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F50C;</div><div class="empty-msg">' + _t('msg-load-failed-retry') + '</div><button class="btn btn-sm" onclick="loadDatasources()" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+            grid.setAttribute('aria-busy', 'false');
+        });
+}
+
+// ====== Hot Tickers Panel ======
+function loadHotTickers(forceRefresh) {
+    var grid = document.getElementById('hot-tickers-grid');
+    var btn = document.getElementById('hot-refresh-btn');
+    if (btn) btn.disabled = true;
+    var url = '/api/hot-tickers' + (forceRefresh ? '?refresh=true' : '');
+    fetchWithTimeout(url, {}, 30000)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btn) btn.disabled = false;
+            renderHotTickers(data);
+            if (grid) grid.setAttribute('aria-busy', 'false');
+        })
+        .catch(function() {
+            if (btn) btn.disabled = false;
+            if (grid) grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F525;</div><div class="empty-msg">' + _t('msg-load-failed-retry') + '</div><button class="btn btn-sm" onclick="loadHotTickers(true)" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+            if (grid) grid.setAttribute('aria-busy', 'false');
+        });
+}
+
+function renderHotTickers(data) {
+    var grid = document.getElementById('hot-tickers-grid');
+    if (!grid) return;
+    var tickers = (data && data.tickers) || [];
+    if (!tickers.length) {
+        grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F525;</div><div class="empty-msg">' + _t('msg-hot-unavailable') + '</div></div>';
+        return;
+    }
+    grid.innerHTML = '';
+    tickers.forEach(function(t, idx) {
+        var up = (t.change_pct || 0) > 0;
+        var down = (t.change_pct || 0) < 0;
+        var cls = up ? 'is-up' : (down ? 'is-down' : 'is-flat');
+        var arrow = up ? '\u25B2' : (down ? '\u25BC' : '\u2014');
+        var pct = ((t.change_pct || 0) * 100).toFixed(2);
+        var priceStr = (t.price || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        var card = document.createElement('div');
+        card.className = 'hot-ticker-card ' + cls;
+        card.onclick = function() { window.location.href = '/stocks?ticker=' + t.symbol; };
+        card.oncontextmenu = function(e) {
+            if (_homeCustomizeMode) {
+                e.preventDefault();
+                pinHomeTicker(t.symbol);
+            }
+        };
+        card.innerHTML =
+            '<div class="hot-ticker-head">' +
+                '<span class="hot-ticker-symbol">' + escapeHtml(t.symbol) + '</span>' +
+                '<span class="hot-ticker-name">' + escapeHtml(t.name) + '</span>' +
+            '</div>' +
+            '<div class="hot-ticker-price">' + priceStr + '</div>' +
+            '<div class="hot-ticker-change">' + arrow + ' ' + (up ? '+' : '') + pct + '%</div>';
+        grid.appendChild(card);
+        _deferIndexLoad(function() { loadSparkline(t.symbol, card); }, 80 * idx);
+    });
+    if (data && data.data_error) {
+        var errHint = document.createElement('div');
+        errHint.className = 'empty-hint';
+        errHint.style.cssText = 'grid-column:1/-1; font-size:0.72rem; color:var(--text-muted); margin-top:4px;';
+        errHint.textContent = data.data_error;
+        grid.appendChild(errHint);
+    }
+}
+
+function loadSparkline(symbol, container) {
+    _sparklineQueue.push({ symbol: symbol, container: container });
+    _drainSparklineQueue();
+}
+
+function _drainSparklineQueue() {
+    while (_sparklineInflight < _SPARKLINE_MAX && _sparklineQueue.length) {
+        var job = _sparklineQueue.shift();
+        _sparklineInflight++;
+        fetch('/api/sparkline/' + job.symbol)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.prices && data.prices.length >= 1) {
+                    var prices = data.prices;
+                    if (prices.length === 1) prices = [prices[0], prices[0]];
+                    var svg = createSparklineSVG(prices, data.trend);
+                    var wrapper = document.createElement('div');
+                    wrapper.className = 'sparkline-wrapper';
+                    wrapper.innerHTML = svg;
+                    job.container.appendChild(wrapper);
+                }
+            })
+            .catch(function() {})
+            .then(function() {
+                _sparklineInflight--;
+                _drainSparklineQueue();
+            });
+    }
+}
+
+function createSparklineSVG(prices, trend) {
+    var w = 80, h = 28, pad = 2;
+    var min = Math.min.apply(null, prices);
+    var max = Math.max.apply(null, prices);
+    var range = max - min || 1;
+    var points = prices.map(function(p, i) {
+        var x = pad + (i / (prices.length - 1)) * (w - 2 * pad);
+        var y = pad + (1 - (p - min) / range) * (h - 2 * pad);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    var color = trend === 'up' ? '#00c853' : trend === 'down' ? '#ff1744' : '#ffab00';
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="display:block;">' +
+        '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '</svg>';
+}
+
+// ====== Fear & Greed + Macro Snapshot (from market overview data) ======
+// These rely on the market overview data already loaded
+var _marketOverviewData = null;
+
+var _origRenderMarketBoard = renderMarketBoard;
+renderMarketBoard = function(data) {
+    _origRenderMarketBoard(data);
+    _marketOverviewData = data;
+    renderFearGreed(data);
+    renderMacroSnapshot(data);
+    renderMarketPulse(data);
+    renderIntlMarkets(data);
+    // Mark the data-driven panels as no longer busy
+    ['market-pulse-strip', 'intl-markets-grid', 'macro-snapshot-grid'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.setAttribute('aria-busy', 'false');
+    });
+};
+
+function renderFearGreed(data) {
+    var card = document.getElementById('fear-greed-card');
+    if (!card) return;
+    var items = (data && data.items) || [];
+    var vix = null;
+    items.forEach(function(it) {
+        if (it.key === 'vix') vix = it;
+    });
+    if (!vix || !vix.price) {
+        card.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F628;</div><div class="empty-msg">' + _t('msg-vix-unavailable') + '</div><div class="empty-hint">' + _t('msg-vix-hint') + '</div></div>';
+        return;
+    }
+    var vixVal = vix.price || 0;
+    var index = Math.max(0, Math.min(100, Math.round(100 - ((vixVal - 12) / 38) * 100)));
+    var label = _fgLabel(index);
+    var color = '';
+    if (index >= 75) { color = '#00c853'; }
+    else if (index >= 55) { color = '#76ff03'; }
+    else if (index >= 45) { color = '#ffd600'; }
+    else if (index >= 25) { color = '#ff9100'; }
+    else { color = '#ff1744'; }
+
+    // SVG semi-circle gauge
+    var cx = 100, cy = 90, r = 70;
+    var startAngle = Math.PI;
+    var endAngle = 0;
+    var needleAngle = Math.PI - (index / 100) * Math.PI;
+    // Arc segments for gradient coloring
+    var segments = [
+        { from: 0, to: 25, color: '#ff1744' },
+        { from: 25, to: 45, color: '#ff9100' },
+        { from: 45, to: 55, color: '#ffd600' },
+        { from: 55, to: 75, color: '#76ff03' },
+        { from: 75, to: 100, color: '#00c853' }
+    ];
+    var arcs = '';
+    segments.forEach(function(seg) {
+        var a1 = Math.PI - (seg.from / 100) * Math.PI;
+        var a2 = Math.PI - (seg.to / 100) * Math.PI;
+        var x1 = cx + r * Math.cos(a1);
+        var y1 = cy - r * Math.sin(a1);
+        var x2 = cx + r * Math.cos(a2);
+        var y2 = cy - r * Math.sin(a2);
+        var large = (seg.to - seg.from) > 50 ? 1 : 0;
+        arcs += '<path d="M ' + x1 + ' ' + y1 + ' A ' + r + ' ' + r + ' 0 ' + large + ' 0 ' + x2 + ' ' + y2 + '" fill="none" stroke="' + seg.color + '" stroke-width="12" stroke-linecap="butt" opacity="0.85"/>';
+    });
+    // Needle
+    var nx = cx + (r - 10) * Math.cos(needleAngle);
+    var ny = cy - (r - 10) * Math.sin(needleAngle);
+    var needle = '<line x1="' + cx + '" y1="' + cy + '" x2="' + nx + '" y2="' + ny + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"/>';
+    needle += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="' + color + '"/>';
+
+    var svg = '<svg viewBox="0 0 200 110" width="200" height="110" style="display:block; margin:0 auto;">' +
+        arcs + needle +
+        '</svg>';
+
+    card.innerHTML =
+        '<div class="fg-gauge-wrap">' +
+            svg +
+            '<div class="fg-gauge-value" style="color:' + color + ';">' + index + '</div>' +
+            '<div class="fg-gauge-label" style="color:' + color + ';">' + label + '</div>' +
+            '<div class="fg-gauge-sublabel">' + _t('fg-vix-label') + vixVal.toFixed(2) + '</div>' +
+        '</div>';
+}
+
+function renderMacroSnapshot(data) {
+    var grid = document.getElementById('macro-snapshot-grid');
+    if (!grid) return;
+    var items = (data && data.items) || [];
+    var gold = null, oil = null, btc = null;
+    items.forEach(function(it) {
+        if (it.key === 'gold') gold = it;
+        else if (it.key === 'oil') oil = it;
+        else if (it.key === 'btc') btc = it;
+    });
+    grid.innerHTML = '';
+    var macros = [gold, oil, btc].filter(function(x) { return x; });
+    if (!macros.length) {
+        grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F30D;</div><div class="empty-msg">' + _t('msg-macro-unavailable') + '</div></div>';
+        return;
+    }
+    macros.forEach(function(m) {
+        var pct = m.change_pct || 0;
+        var commentary = '';
+        if (m.key === 'gold') commentary = _macroCommentary('gold', pct, [0.01, -0.01]);
+        else if (m.key === 'oil') commentary = _macroCommentary('oil', pct, [0.01, -0.01]);
+        else if (m.key === 'btc') commentary = _macroCommentary('btc', pct, [0.02, -0.02]);
+        var up = pct > 0;
+        var down = pct < 0;
+        var cls = up ? 'is-up' : (down ? 'is-down' : 'is-flat');
+        var card = document.createElement('div');
+        card.className = 'macro-card ' + cls;
+        card.innerHTML =
+            '<div class="macro-card-name">' + escapeHtml(m.name) + '</div>' +
+            '<div class="macro-card-price">' + (m.price || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</div>' +
+            '<div class="macro-card-change">' + (up ? '+' : '') + (pct * 100).toFixed(2) + '%</div>' +
+            '<div class="macro-card-comment">' + commentary + '</div>';
+        grid.appendChild(card);
+    });
+}
+
+// ====== Market Pulse Strip (key metrics at-a-glance) ======
+function renderMarketPulse(data) {
+    var strip = document.getElementById('market-pulse-strip');
+    if (!strip) return;
+    var items = (data && data.items) || [];
+    if (!items.length) {
+        strip.innerHTML = '<div class="panel-empty-state" style="padding:8px 12px;"><span class="empty-msg">' + _t('msg-market-loading') + '</span></div>';
+        return;
+    }
+    // Show key metrics: S&P 500, VIX, 10Y, Gold, BTC
+    var keys = ['sp500', 'vix', 'us10y', 'gold', 'btc'];
+    var labels = {'sp500': 'S&P 500', 'vix': 'VIX', 'us10y': '10Y', 'gold': 'GOLD', 'btc': 'BTC'};
+    var pulseItems = [];
+    keys.forEach(function(k) {
+        var item = null;
+        items.forEach(function(it) { if (it.key === k) item = it; });
+        if (item) pulseItems.push(item);
+    });
+    if (!pulseItems.length) {
+        strip.innerHTML = '<div class="panel-empty-state" style="padding:8px 12px;"><span class="empty-msg">' + _t('msg-metrics-unavailable') + '</span></div>';
+        return;
+    }
+    strip.innerHTML = '';
+    pulseItems.forEach(function(it) {
+        var pct = it.change_pct || 0;
+        var up = pct > 0;
+        var down = pct < 0;
+        var arrowCls = up ? 'up' : (down ? 'down' : 'flat');
+        var arrowChar = up ? '\u25B2' : (down ? '\u25BC' : '\u2014');
+        var priceStr = (it.price || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+        var pctStr = (up ? '+' : '') + (pct * 100).toFixed(2) + '%';
+        var pctColor = up ? 'var(--signal-buy)' : (down ? 'var(--signal-sell)' : 'var(--text-muted)');
+        var lbl = labels[it.key] || it.name || it.key;
+        var div = document.createElement('div');
+        div.className = 'pulse-item';
+        div.innerHTML =
+            '<span class="pulse-label">' + lbl + '</span>' +
+            '<span class="pulse-value">' + priceStr + '</span>' +
+            '<span class="pulse-arrow ' + arrowCls + '">' + arrowChar + '</span>' +
+            '<span class="pulse-pct" style="color:' + pctColor + ';">' + pctStr + '</span>';
+        strip.appendChild(div);
+    });
+}
+
+// ====== International Markets Panel ======
+function renderIntlMarkets(data) {
+    var grid = document.getElementById('intl-markets-grid');
+    if (!grid) return;
+    var items = (data && data.items) || [];
+    // International indices keys and their region
+    var intlKeys = [
+        { key: 'hsi', regionKey: 'intl-region-asia' },
+        { key: 'nikkei', regionKey: 'intl-region-asia' },
+        { key: 'csi300', regionKey: 'intl-region-asia' },
+        { key: 'ftse', regionKey: 'intl-region-europe' },
+        { key: 'dax', regionKey: 'intl-region-europe' }
+    ];
+    var intlItems = [];
+    intlKeys.forEach(function(ik) {
+        items.forEach(function(it) {
+            if (it.key === ik.key) {
+                intlItems.push({ data: it, region: _t(ik.regionKey) });
+            }
+        });
+    });
+    if (!intlItems.length) {
+        grid.innerHTML = '<div class="panel-empty-state" style="grid-column:1/-1;"><div class="empty-icon">&#x1F30F;</div><div class="empty-msg">' + _t('msg-intl-unavailable') + '</div></div>';
+        return;
+    }
+    grid.innerHTML = '';
+    intlItems.forEach(function(entry) {
+        var it = entry.data;
+        var pct = it.change_pct || 0;
+        var up = pct > 0;
+        var down = pct < 0;
+        var changeColor = up ? 'var(--signal-buy)' : (down ? 'var(--signal-sell)' : 'var(--text-muted)');
+        var arrow = up ? '\u25B2' : (down ? '\u25BC' : '');
+        var priceStr = (it.price || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+        var card = document.createElement('div');
+        card.className = 'intl-market-card';
+        card.innerHTML =
+            '<div class="intl-market-region">' + entry.region + '</div>' +
+            '<div class="intl-market-name">' + escapeHtml(it.name) + '</div>' +
+            '<div class="intl-market-price">' + priceStr + '</div>' +
+            '<div class="intl-market-change" style="color:' + changeColor + ';">' +
+                arrow + ' ' + (up ? '+' : '') + (pct * 100).toFixed(2) + '%</div>';
+        grid.appendChild(card);
+    });
+}
+
+function renderRecentAnalyses() {
+    var recent = augurCache.getLast(5);
+    var section = document.getElementById('recent-section');
+    var list = document.getElementById('recent-list');
+    if (!section || !list) return;
+    if (recent.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    list.innerHTML = '';
+    recent.forEach(function(item) {
+        var signal = (item.result.signal || 'neutral').toLowerCase();
+        var signalLabel = signal === 'bullish' ? 'BUY' : signal === 'bearish' ? 'SELL' : 'HOLD';
+        var badgeClass = signal === 'bullish' ? 'signal-badge-buy' : signal === 'bearish' ? 'signal-badge-sell' : 'signal-badge-neutral';
+        var li = document.createElement('li');
+        li.onclick = function() { window.location.href = '/stocks?ticker=' + item.ticker; };
+        li.innerHTML = '<span class="rt">' + item.ticker + '</span>' +
+            '<span class="signal-badge ' + badgeClass + '" style="font-size:0.62rem;padding:2px 8px">' + signalLabel + '</span>' +
+            '<span style="font:600 0.82rem/1 var(--font-mono);color:var(--fg-2);margin-left:auto">' + (item.result.score || 0).toFixed(1) + '</span>' +
+            '<span style="font:500 0.62rem/1 var(--font-mono);color:var(--fg-3);width:72px;text-align:right">' + relativeTime(item.time) + '</span>';
+        list.appendChild(li);
+    });
+}
+
+// ====== Sector Performance ======
+function loadSectorPerformance(forceRefresh) {
+    var grid = document.getElementById('sector-grid');
+    var btn = document.getElementById('sector-refresh-btn');
+    if (btn) btn.disabled = true;
+    var url = '/api/sector-performance' + (forceRefresh ? '?refresh=true' : '');
+    fetchWithTimeout(url, {}, 30000)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btn) btn.disabled = false;
+            renderSectorGrid(data);
+            if (grid) grid.setAttribute('aria-busy', 'false');
+        })
+        .catch(function() {
+            if (btn) btn.disabled = false;
+            if (grid) grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F3D7;</div><div class="empty-msg">' + _t('msg-load-failed-retry') + '</div><button class="btn btn-sm" onclick="loadSectorPerformance(true)" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+            if (grid) grid.setAttribute('aria-busy', 'false');
+        });
+}
+
+function renderSectorGrid(data) {
+    var grid = document.getElementById('sector-grid');
+    if (!grid) return;
+    var sectors = (data && data.sectors) || [];
+    if (!sectors.length) {
+        grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1F3D7;</div><div class="empty-msg">' + _t('msg-sector-unavailable') + '</div></div>';
+        return;
+    }
+    grid.innerHTML = '';
+    sectors.forEach(function(s) {
+        var pct = s.change_pct || 0;
+        var heatClass = '';
+        if (pct > 0.02) heatClass = 'heat-strong-up';
+        else if (pct > 0) heatClass = 'heat-up';
+        else if (pct < -0.02) heatClass = 'heat-strong-down';
+        else if (pct < 0) heatClass = 'heat-down';
+        var up = pct > 0;
+        // Mini bar: width proportional to |change_pct|, capped at 5%
+        var absPct = Math.abs(pct);
+        var barWidth = Math.min(absPct / 0.05, 1) * 100;
+        var barColor = up ? 'var(--signal-buy)' : (pct < 0 ? 'var(--signal-sell)' : 'var(--text-muted)');
+        var card = document.createElement('div');
+        card.className = 'sector-card ' + heatClass;
+        card.title = (s.name || '') + ': ' + (pct * 100).toFixed(2) + '%';
+        card.innerHTML =
+            '<div class="sector-name">' + escapeHtml(s.name) + '</div>' +
+            '<div class="sector-ticker">' + escapeHtml(s.symbol) + '</div>' +
+            '<div class="sector-price">' + (s.price || 0).toFixed(2) + '</div>' +
+            '<div class="sector-change" style="color:' + (up ? 'var(--signal-buy)' : (pct < 0 ? 'var(--signal-sell)' : 'var(--text-muted)')) + ';">' +
+                (up ? '+' : '') + (pct * 100).toFixed(2) + '%</div>' +
+            '<div class="sector-bar-wrap"><div class="sector-bar-fill" style="width:' + barWidth + '%; background:' + barColor + ';"></div></div>';
+        grid.appendChild(card);
+    });
+}
+
+// ====== Top Movers (derived from hot tickers) ======
+var _hotTickersDataForMovers = null;
+var _origRenderHotTickers = renderHotTickers;
+renderHotTickers = function(data) {
+    _origRenderHotTickers(data);
+    _hotTickersDataForMovers = data;
+    renderTopMovers(data);
+    renderMarketBreadth(data);
+};
+
+function renderTopMovers(data) {
+    var gainersList = document.getElementById('gainers-list');
+    var losersList = document.getElementById('losers-list');
+    if (!gainersList || !losersList) return;
+    var tickers = (data && data.tickers) || [];
+    if (!tickers.length) {
+        gainersList.innerHTML = '<div class="panel-empty-state"><div class="empty-msg">' + _t('msg-data-unavailable') + '</div></div>';
+        losersList.innerHTML = '<div class="panel-empty-state"><div class="empty-msg">' + _t('msg-data-unavailable') + '</div></div>';
+        return;
+    }
+    var sorted = tickers.slice().sort(function(a, b) { return (b.change_pct || 0) - (a.change_pct || 0); });
+    var gainers = sorted.slice(0, 3);
+    var losers = sorted.slice(-3).reverse();
+
+    function renderMoverList(container, items, isGainer) {
+        container.innerHTML = '';
+        items.forEach(function(t) {
+            var pct = ((t.change_pct || 0) * 100).toFixed(2);
+            var div = document.createElement('div');
+            div.className = 'mover-item';
+            div.onclick = function() { window.location.href = '/stocks?ticker=' + t.symbol; };
+            div.innerHTML =
+                '<div><span class="mover-symbol">' + escapeHtml(t.symbol) + '</span> <span class="mover-name">' + escapeHtml(t.name || '') + '</span></div>' +
+                '<span class="mover-change" style="color:' + (isGainer ? 'var(--signal-buy)' : 'var(--signal-sell)') + ';">' +
+                    (isGainer ? '+' : '') + pct + '%</span>';
+            container.appendChild(div);
+        });
+    }
+
+    renderMoverList(gainersList, gainers, true);
+    renderMoverList(losersList, losers, false);
+}
+
+// ====== Market Breadth (from hot tickers) ======
+function renderMarketBreadth(data) {
+    var tickers = (data && data.tickers) || [];
+    var advEl = document.getElementById('breadth-advance');
+    var decEl = document.getElementById('breadth-decline');
+    var advLabel = document.getElementById('breadth-adv-label');
+    var decLabel = document.getElementById('breadth-dec-label');
+    if (!advEl || !decEl) return;
+    if (!tickers.length) return;
+    var advancing = 0, declining = 0;
+    tickers.forEach(function(t) {
+        if ((t.change_pct || 0) > 0) advancing++;
+        else if ((t.change_pct || 0) < 0) declining++;
+    });
+    var total = advancing + declining || 1;
+    var advPct = Math.round((advancing / total) * 100);
+    var decPct = 100 - advPct;
+    advEl.style.width = advPct + '%';
+    decEl.style.width = decPct + '%';
+    advEl.textContent = advancing + ' (' + advPct + '%)';
+    decEl.textContent = declining + ' (' + decPct + '%)';
+    if (advLabel) advLabel.textContent = _t('breadth-advancing') + ' ' + advancing;
+    if (decLabel) decLabel.textContent = _t('breadth-declining') + ' ' + declining;
+}
+
+// ====== Augur Consensus Leaderboard ======
+function renderLeaderboard() {
+    var list = document.getElementById('leaderboard-list');
+    if (!list) return;
+    var recent = augurCache.getLast(10);
+    // Sort by score descending
+    var scored = recent.filter(function(item) { return item.result && typeof item.result.score === 'number'; });
+    scored.sort(function(a, b) { return (b.result.score || 0) - (a.result.score || 0); });
+    var top = scored.slice(0, 5);
+    if (!top.length) {
+        list.innerHTML = '<li class="leaderboard-item" style="justify-content:center; flex-wrap:wrap; gap:8px;">' +
+            '<span class="text-muted" style="font-size:0.78rem;">' + _t('leaderboard-empty') + '</span>' +
+            '<span class="chip chip-recommended" role="button" tabindex="0" data-i18n-aria="a11y-chip-aapl" aria-label="Try AAPL example" onclick="tryExample(\'AAPL\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();tryExample(\'AAPL\')}">AAPL</span>' +
+            '</li>';
+        return;
+    }
+    list.innerHTML = '';
+    top.forEach(function(item, idx) {
+        var signal = (item.result.signal || 'neutral').toLowerCase();
+        var signalLabel = signal === 'bullish' ? 'BUY' : signal === 'bearish' ? 'SELL' : 'HOLD';
+        var badgeClass = signal === 'bullish' ? 'signal-badge-buy' : signal === 'bearish' ? 'signal-badge-sell' : 'signal-badge-neutral';
+        var li = document.createElement('li');
+        li.className = 'leaderboard-item';
+        li.onclick = function() { window.location.href = '/stocks?ticker=' + item.ticker; };
+        li.innerHTML =
+            '<span class="leaderboard-rank">#' + (idx + 1) + '</span>' +
+            '<span class="leaderboard-ticker">' + escapeHtml(item.ticker) + '</span>' +
+            '<span class="signal-badge ' + badgeClass + '">' + signalLabel + '</span>' +
+            '<span class="leaderboard-score">' + (item.result.score || 0).toFixed(1) + '/10</span>' +
+            '<span class="leaderboard-time">' + relativeTime(item.time) + '</span>';
+        list.appendChild(li);
+    });
+}
+
+// ====== Crypto Overview Panel ======
+function loadCryptoOverview() {
+    var grid = document.getElementById('crypto-grid');
+    var btn = document.getElementById('crypto-refresh-btn');
+    if (btn) btn.disabled = true;
+    fetchWithTimeout('/api/crypto-overview', {}, 30000)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btn) btn.disabled = false;
+            renderCryptoGrid(data);
+            if (grid) grid.setAttribute('aria-busy', 'false');
+        })
+        .catch(function() {
+            if (btn) btn.disabled = false;
+            if (grid) grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1FA99;</div><div class="empty-msg">' + _t('msg-load-failed-retry') + '</div><button class="btn btn-sm" onclick="loadCryptoOverview()" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+            if (grid) grid.setAttribute('aria-busy', 'false');
+        });
+}
+
+function renderCryptoGrid(data) {
+    var grid = document.getElementById('crypto-grid');
+    if (!grid) return;
+    var coins = (data && data.coins) || [];
+    if (!coins.length) {
+        grid.innerHTML = '<div class="panel-empty-state"><div class="empty-icon">&#x1FA99;</div><div class="empty-msg">' + _t('msg-crypto-unavailable') + '</div></div>';
+        return;
+    }
+    grid.innerHTML = '';
+    coins.forEach(function(c) {
+        var up = (c.change_pct || 0) > 0;
+        var down = (c.change_pct || 0) < 0;
+        var cls = up ? 'is-up' : (down ? 'is-down' : 'is-flat');
+        var arrow = up ? '\u25B2' : (down ? '\u25BC' : '\u2014');
+        var pct = ((c.change_pct || 0) * 100).toFixed(2);
+        var priceStr = (c.price || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        var mcap = c.market_cap ? '$' + (c.market_cap / 1e9).toFixed(1) + 'B' : '';
+        var card = document.createElement('div');
+        card.className = 'hot-ticker-card ' + cls;
+        card.innerHTML =
+            '<div class="hot-ticker-head">' +
+                '<span class="hot-ticker-symbol">' + escapeHtml(c.symbol) + '</span>' +
+                '<span class="hot-ticker-name">' + escapeHtml(c.name) + '</span>' +
+            '</div>' +
+            '<div class="hot-ticker-price">' + priceStr + '</div>' +
+            '<div class="hot-ticker-change">' + arrow + ' ' + (up ? '+' : '') + pct + '%</div>' +
+            (mcap ? '<div class="text-muted" style="font-size:0.68rem; margin-top:2px;">' + mcap + '</div>' : '');
+        grid.appendChild(card);
+    });
+}
+
+// ====== Commodities & Treasury Rates Panel ======
+function loadCommoditiesAndRates() {
+    loadCommodities();
+    loadTreasuryRates();
+}
+
+function loadCommodities() {
+    var list = document.getElementById('commodities-list');
+    fetchWithTimeout('/api/commodities', {}, 30000)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            renderCommodities(data);
+            _setCommodRatesBusy(false);
+        })
+        .catch(function() {
+            if (list) list.innerHTML = '<div class="panel-empty-state"><div class="empty-msg">' + _t('msg-load-failed-retry') + '</div><button class="btn btn-sm" onclick="loadCommodities()" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+            _setCommodRatesBusy(false);
+        });
+}
+
+function renderCommodities(data) {
+    var list = document.getElementById('commodities-list');
+    if (!list) return;
+    var commodities = (data && data.commodities) || [];
+    if (!commodities.length) {
+        list.innerHTML = '<div class="panel-empty-state"><div class="empty-msg">' + _t('msg-commodities-unavailable') + '</div></div>';
+        return;
+    }
+    list.innerHTML = '';
+    commodities.forEach(function(c) {
+        var pct = (c.change_pct || 0);
+        var up = pct > 0;
+        var down = pct < 0;
+        var pctStr = (up ? '+' : '') + (pct * 100).toFixed(2) + '%';
+        var color = up ? 'var(--signal-buy)' : (down ? 'var(--signal-sell)' : 'var(--text-muted)');
+        var div = document.createElement('div');
+        div.className = 'mover-item';
+        div.innerHTML =
+            '<div><span class="mover-symbol">' + escapeHtml(c.name) + '</span> <span class="mover-name">' + escapeHtml(c.symbol) + '</span></div>' +
+            '<span style="font-family:var(--font-data); font-size:0.82rem; font-weight:600; color:var(--text-primary);">$' + (c.price || 0).toFixed(2) + '</span>' +
+            '<span class="mover-change" style="color:' + color + ';">' + pctStr + '</span>';
+        list.appendChild(div);
+    });
+}
+
+function loadTreasuryRates() {
+    var list = document.getElementById('treasury-list');
+    fetchWithTimeout('/api/treasury-rates', {}, 30000)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            renderTreasuryRates(data);
+            _setCommodRatesBusy(false);
+        })
+        .catch(function() {
+            if (list) list.innerHTML = '<div class="panel-empty-state"><div class="empty-msg">' + _t('msg-load-failed-retry') + '</div><button class="btn btn-sm" onclick="loadTreasuryRates()" style="margin-top:8px;">' + _t('btn-retry') + '</button></div>';
+            _setCommodRatesBusy(false);
+        });
+}
+
+function _setCommodRatesBusy(busy) {
+    var row = document.getElementById('commodities-rates-row');
+    if (row) row.setAttribute('aria-busy', busy ? 'true' : 'false');
+}
+
+function renderTreasuryRates(data) {
+    var list = document.getElementById('treasury-list');
+    if (!list) return;
+    var rates = (data && data.rates) || [];
+    if (!rates.length) {
+        list.innerHTML = '<div class="panel-empty-state"><div class="empty-msg">' + _t('msg-treasury-unavailable') + '</div></div>';
+        return;
+    }
+    list.innerHTML = '';
+    rates.forEach(function(r) {
+        var yieldPct = r.yield_pct || 0;
+        var div = document.createElement('div');
+        div.className = 'mover-item';
+        div.innerHTML =
+            '<div><span class="mover-symbol">' + escapeHtml(r.maturity) + '</span> <span class="mover-name">' + escapeHtml(r.name || '') + '</span></div>' +
+            '<span class="mover-change" style="color:var(--accent-orange); font-family:var(--font-data); font-size:0.88rem; font-weight:600;">' + yieldPct.toFixed(3) + '%</span>';
+        list.appendChild(div);
+    });
+}
+</script>
+{% endblock %}
+
+<!-- ============ Alerts Panel ============ -->
+<div id="alerts-panel" style="position: fixed; top: 16px; right: 16px; z-index: 9000; width: 360px; max-width: 92vw;">
+</div>
+<script>
+(function() {
+  var panel = document.getElementById('alerts-panel');
+  function loadAlerts() {
+    fetch('/api/alerts/active')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var alerts = data.alerts || [];
+        if (alerts.length === 0) return;
+        panel.innerHTML = alerts.map(function(a) {
+          var sevColor = a.severity === 'critical' ? '#ef4444' : a.severity === 'high' ? '#f59e0b' : a.severity === 'medium' ? '#3b82f6' : '#6b7280';
+          return '<div class="toast" style="background: var(--bg-card); color: var(--text); border-left: 4px solid ' + sevColor + '; margin-bottom: 8px; cursor: pointer; position: relative;" onclick="this.remove()">'
+            + '<div style="font-weight: 600; font-size: 13px;">' + escapeHtml(a.title) + '</div>'
+            + '<div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">' + escapeHtml(a.description) + '</div>'
+            + '<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">' + (a.ticker || '') + ' · ' + a.alert_type + '</div>'
+            + '</div>';
+        }).join('');
+      }).catch(function() {});
+  }
+  function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  loadAlerts();
+  setInterval(loadAlerts, 60000);
+})();
+</script>

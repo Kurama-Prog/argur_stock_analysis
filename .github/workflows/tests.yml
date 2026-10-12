@@ -1,0 +1,105 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+
+    env:
+      AUGUR_DATA_DIR: /tmp/augur_test_${{ github.run_id }}
+      AUGUR_LOG_LEVEL: WARNING
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -e ".[data,dev]"
+
+      # --- CI assertions (pre-test) ---
+
+      - name: Assert augur installed from checkout (not site-packages)
+        run: |
+          IMPORT_PATH=$(python -c "import augur; print(augur.__file__)")
+          echo "augur.__file__ = ${IMPORT_PATH}"
+          case "${IMPORT_PATH}" in
+            "${{ github.workspace }}/src/augur/"*) echo "OK: augur resolved from checkout";;
+            *) echo "FAIL: augur resolved outside checkout — ${IMPORT_PATH}"; exit 1;;
+          esac
+
+      - name: Assert augur.__version__ matches pyproject.toml
+        run: |
+          PKG_VERSION=$(python -c "import augur; print(augur.__version__)")
+          TOML_VERSION=$(python -c "import re; t=open('pyproject.toml').read(); m=re.search(r'^version\s*=\s*\\\"([^\\\"]+)\\\"', t, re.MULTILINE); print(m.group(1) if m else 'NOT-FOUND')")
+          echo "augur.__version__  = ${PKG_VERSION}"
+          echo "pyproject.toml     = ${TOML_VERSION}"
+          if [ "${PKG_VERSION}" != "${TOML_VERSION}" ]; then
+            echo "FAIL: version mismatch"
+            exit 1
+          fi
+          echo "OK: versions match"
+
+      # --- Run tests ---
+
+      - name: Run tests
+        # NOTE: no ``| tail`` here. GitHub's default shell is ``bash -e`` without
+        # ``pipefail``, so piping pytest into tail made this step's exit code
+        # tail's (always 0). From 2026-08-12 to 2026-09-03 every run was green
+        # while pytest aborted at collection (missing ``jsonschema``) and ran
+        # zero tests. Keep pytest as the last command so its exit code is the
+        # step's.
+        run: |
+          set -o pipefail
+          python -m pytest tests/ -q --tb=short -p no:cacheprovider
+
+      - name: Assert tests actually ran
+        if: always()
+        run: |
+          python - <<'PY'
+          import re, subprocess, sys
+          out = subprocess.run(
+              [sys.executable, "-m", "pytest", "tests/", "--collect-only", "-q"],
+              capture_output=True, text=True,
+          ).stdout
+          m = re.search(r"(\d+) tests? collected", out)
+          n = int(m.group(1)) if m else 0
+          print(f"collected {n} tests")
+          if n < 3000:
+              print("FAIL: collection count suspiciously low — collection error?")
+              sys.exit(1)
+          PY
+
+      # --- CI assertions (post-test) ---
+
+      - name: Assert no writes to ~/.augur
+        run: |
+          if [ -d "${HOME}/.augur" ]; then
+            echo "FAIL: ~/.augur exists — tests wrote to the default user directory"
+            echo "Contents:"
+            find "${HOME}/.augur" -type f 2>/dev/null || true
+            exit 1
+          fi
+          echo "OK: ~/.augur does not exist (AUGUR_DATA_DIR respected)"
+
+      - name: Assert AUGUR_DATA_DIR was used
+        run: |
+          if [ -d "${AUGUR_DATA_DIR}" ]; then
+            echo "OK: AUGUR_DATA_DIR exists (tests wrote here as expected)"
+            echo "Contents:"
+            find "${AUGUR_DATA_DIR}" -type f 2>/dev/null || true
+          else
+            echo "NOTE: AUGUR_DATA_DIR does not exist — no persistence occurred"
+          fi

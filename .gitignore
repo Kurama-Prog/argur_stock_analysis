@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.agents/
+.venv/
+.venv.old-libressl-backup/
+
+# Test caches
+.pytest-home/
+.pytest-tmp-home/
+
+# OS generated files
+.DS_Store
+
+# Nested git clone ignore
+/augur/
+
+# augur export output written into the working directory
+run_*_report.md
+run_*_report.json
+run_*_report.pdf
+evidence_pack_run_*.zip

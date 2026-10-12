@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ff6b35" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1a1a2e" media="(prefers-color-scheme: dark)">
+    <title>{% block title %}Augur - 投资大师分析{% endblock %}</title>
+    <!-- Preconnect to CDN origins for faster font/icon loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    <!-- Critical CSS preload -->
+    <link rel="preload" href="/static/css/layout.css?v=11.0.0" as="style">
+    <link rel="preload" href="/static/css/colors_and_type.css?v=11.0.0" as="style">
+    <meta name="description" content="Augur - Multi-agent investment analysis platform with 18 investor personas">
+    <meta name="keywords" content="Augur, AI投资分析, 多智能体, 股票分析, 巴菲特, 投资大师, 共识分析, Multi-Agent, Investment Analysis">
+    <meta property="og:title" data-i18n-meta="meta-og-title" content="{% block og_title %}Augur - 18位投资大师AI共识分析系统{% endblock %}">
+    <meta property="og:description" data-i18n-meta="meta-og-desc" content="让巴菲特、芒格、段永平等18位顶级投资大师同时为你分析，形成加权共识信号。">
+    <meta property="og:image" data-i18n-lang-img content="/static/images/hero-banner-baoyu.svg">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{% block og_url %}/{% endblock %}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" data-i18n-meta="meta-twitter-title" content="Augur - 18位投资大师AI共识分析">
+    <meta name="twitter:description" data-i18n-meta="meta-twitter-desc" content="多智能体投资分析平台，18位虚拟投资大师共识决策">
+    <meta name="twitter:image" data-i18n-lang-img content="/static/images/hero-banner-baoyu.svg">
+    <link rel="icon" type="image/png" href="/static/images/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="/static/css/bloomberg.css?v=8.1.0" rel="stylesheet">
+    <link href="/static/css/ui-enhance.css?v=8.1.0" rel="stylesheet">
+    <link href="/static/css/colors_and_type.css?v=8.1.0" rel="stylesheet">
+    <link href="/static/css/augur.css?v=8.1.0" rel="stylesheet">
+    <link href="/static/css/layout.css?v=8.1.0" rel="stylesheet">
+    <link href="/static/css/evidence.css?v=8.1.0" rel="stylesheet">
+    <link href="/static/css/loading.css?v=8.1.0" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#d4a017">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Augur">
+    <link rel="apple-touch-icon" href="/static/images/augur-owl-128.png">
+</head>
+<body class="augur">
+    <a href="#main-content" class="skip-link" data-i18n="a11y-skip-main">跳到主内容</a>
+    <div class="global-progress-bar" id="global-progress-bar" role="progressbar" aria-hidden="true"></div>
+    <!-- Shell: CSS grid in layout.css — col1 sidebar, col2 main, gap 0 -->
+    <div class="app app-layout">
+        <!-- Sidebar (grid column 1) -->
+        <aside class="sb sidebar bg-grid" id="sidebar" aria-label="Main navigation">
+            <div class="sb-logo" onclick="window.location.href='/'" role="link" tabindex="0" aria-label="Augur home" title="Augur home">
+                <img class="pixelated" src="/static/images/augur-owl-64.png" alt="Augur logo" width="32" height="32">
+                <span class="sb-word">Augur</span>
+            </div>
+
+            <button type="button" class="sidebar-collapse-btn" onclick="toggleSidebar()" data-i18n-aria="a11y-collapse-sidebar" aria-label="折叠侧边栏">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+
+            <nav class="sb-nav" aria-label="Primary">
+                <!-- 分析 Group -->
+                <div class="sb-group" data-i18n="group-analysis">Analysis</div>
+                <a class="sb-item nav-item" href="/" data-page="home">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <span data-i18n="nav-dashboard">Dashboard</span>
+                </a>
+                <a class="sb-item nav-item" href="/stocks" data-page="stocks">
+                    <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 9l-5 5-2-2-4 4"/></svg>
+                    <span data-i18n="nav-stocks">Stock Analysis</span>
+                </a>
+                <a class="sb-item nav-item" href="/signals" data-page="signals">
+                    <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <span data-i18n="nav-signals">Signals</span>
+                    <em class="sb-badge">LIVE</em>
+                </a>
+                <a class="sb-item nav-item" href="/scanner" data-page="scanner">
+                    <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg>
+                    <span data-i18n="nav_scanner">Scanner</span>
+                </a>
+                <a class="sb-item nav-item" href="/watchlist" data-page="watchlist">
+                    <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    <span data-i18n="nav-watchlist">Watchlist</span>
+                </a>
+                <a class="sb-item nav-item" href="/portfolio" data-page="portfolio">
+                    <svg viewBox="0 0 24 24"><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 3v4M8 3v4M2 11h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span data-i18n="nav-portfolio">Portfolio</span>
+                </a>
+                <a class="sb-item nav-item" href="/backtest" data-page="backtest">
+                    <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/><path d="M3 12h1M12 3v1M21 12h1M12 21v1"/></svg>
+                    <span data-i18n="nav-backtest">Backtest</span>
+                </a>
+
+                <!-- 投资人 Group -->
+                <div class="sb-group" data-i18n="group-investors">The Council</div>
+                <a class="sb-item nav-item" href="/personas" data-page="personas">
+                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span data-i18n="nav-personas">18 Masters</span>
+                </a>
+
+                <a class="sb-item nav-item" href="/create-persona" data-page="create-persona">
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span data-i18n="nav-create-persona">Summon New</span>
+                </a>
+
+                <!-- v8 其他功能 -->
+                <div class="sb-group" data-i18n="group-v8">Extra Tools</div>
+                <a class="sb-item nav-item" href="/optimizer" data-page="optimizer">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span data-i18n="nav-optimizer">Optimizer</span>
+                </a>
+                <a class="sb-item nav-item" href="/valuation" data-page="valuation">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"/></svg>
+                    <span data-i18n="nav-valuation">Valuation</span>
+                </a>
+                <a class="sb-item nav-item" href="/compare" data-page="compare">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3M12 3v18" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                    <span data-i18n="nav-compare">Compare</span>
+                </a>
+                <a class="sb-item nav-item" href="/debate" data-page="debate">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10h8M8 14h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span data-i18n="nav-debate">Debate</span>
+                </a>
+                <a class="sb-item nav-item" href="/committee" data-page="committee">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 21v-2a6 6 0 0 1 6-6h6a6 6 0 0 1 6 6v2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v4M10 13h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span data-i18n="nav-committee">Committee</span>
+                </a>
+                <a class="sb-item nav-item" href="/hermes-setup" data-page="hermes-setup">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8M12 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <span data-i18n="nav-hermes-setup">Hermes Setup</span>
+                </a>
+                <a class="sb-item nav-item" href="/history" data-page="history">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span data-i18n="nav-history">History</span>
+                </a>
+                <a class="sb-item nav-item" href="/performance" data-page="performance">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    <span data-i18n="nav-performance">Leaderboard</span>
+                </a>
+
+                <!-- 系统 Group -->
+                <div class="sb-group" data-i18n="group-system">System</div>
+                <a class="sb-item nav-item" href="/settings" data-page="settings">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span data-i18n="nav-settings">Settings</span>
+                </a>
+            </nav>
+
+            <div class="sb-foot">
+                <button type="button" onclick="toggleLanguage()" class="lang-toggle-btn" data-i18n-aria="a11y-toggle-lang" aria-label="切换语言">
+                    <span id="lang-label">EN</span>
+                </button>
+                <button type="button" onclick="openKbdModal()" class="lang-toggle-btn" data-i18n-aria="kbd-show-help" aria-label="显示快捷键帮助" title="Keyboard shortcuts (?)">
+                    ?
+                </button>
+                <button type="button" class="theme-toggle-btn" onclick="augurTheme.toggle()" aria-label="Toggle dark/light theme" title="Toggle theme">
+                    <span id="theme-icon">🌙</span>
+                    <span id="theme-label">Dark</span>
+                </button>
+                <div class="sb-status status-indicator connected"><span class="dot live status-dot"></span><span class="status-text" data-i18n="status-ready">Oracle online · yfinance live</span></div>
+                <div class="sb-ver" data-i18n="powered-by">AUGUR v8.1.0</div>
+            </div>
+        </aside>
+
+        <!-- Mobile backdrop -->
+        <div class="mobile-backdrop" id="backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
+
+        <!-- Mobile hamburger -->
+        <button type="button" class="hamburger-btn" onclick="openSidebar()" data-i18n-aria="a11y-open-menu" aria-label="打开导航菜单" aria-expanded="false" aria-controls="sidebar">
+            <svg viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+
+        <!-- Main content -->
+        <main class="main app-main" id="main-content" tabindex="-1">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Ticker Tape — position:fixed, right of sidebar -->
+    <div class="ticker-tape-wrap" id="ticker-tape-wrap" data-i18n-aria="a11y-ticker-tape" aria-label="实时行情" aria-live="off">
+        <div class="ticker-tape-track" id="ticker-tape-track">
+            <span class="ticker-tape-loading" data-i18n="ticker-loading">行情加载中…</span>
+        </div>
+        <span class="tape-paused-badge" id="tape-paused-badge" data-i18n="ticker-paused-badge" hidden>⏸ 已暂停 — 点击继续</span>
+        <button type="button" class="ticker-tape-pause" id="ticker-tape-pause" data-i18n-aria="a11y-ticker-pause" data-i18n-title="ticker-pause-title" aria-label="暂停滚动" title="暂停/继续">⏸</button>
+    </div>
+
+    <!-- Bottom nav for mobile — max 5 tabs, others accessible via sidebar -->
+    <nav class="bottom-nav" id="bottom-nav" aria-label="Mobile navigation">
+        <a class="bottom-nav-item" href="/" data-page="home" aria-label="Dashboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span data-i18n="bottom-home">首页</span>
+        </a>
+        <a class="bottom-nav-item" href="/stocks" data-page="stocks" aria-label="Stock Analysis">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 9l-5 5-2-2-4 4"/></svg>
+            <span data-i18n="bottom-analysis">分析</span>
+        </a>
+        <a class="bottom-nav-item" href="/committee" data-page="committee" aria-label="Committee">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span data-i18n="bottom-committee">委员会</span>
+        </a>
+        <a class="bottom-nav-item" href="/history" data-page="history" aria-label="History">
+            <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+            <span data-i18n="bottom-history">历史</span>
+        </a>
+        <a class="bottom-nav-item" href="/settings" data-page="settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15"/></svg>
+            <span data-i18n="bottom-settings">设置</span>
+        </a>
+    </nav>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toast-container" role="status" aria-live="polite" aria-atomic="true" style="position:fixed;z-index:9999;top:16px;right:16px;"></div>
+
+    <!-- Keyboard shortcuts modal -->
+    <div id="kbd-modal" role="dialog" aria-modal="true" aria-labelledby="kbd-modal-heading" onclick="if(event.target===this)closeKbdModal()" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-card,#1a1a2e);border:1px solid var(--border,#333);border-radius:12px;padding:28px 32px;min-width:340px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative;">
+            <h2 id="kbd-modal-heading" data-i18n="kbd-modal-title" style="margin:0 0 20px;font-size:1.1rem;font-weight:600;color:var(--text-primary,#fff);letter-spacing:.02em;">键盘快捷键</h2>
+            <table style="width:100%;border-collapse:collapse;" role="grid" aria-label="Keyboard shortcuts">
+                <tbody>
+                    <tr style="border-bottom:1px solid var(--border,#333);">
+                        <td style="padding:10px 0;color:var(--text-secondary,#aaa);font-size:.875rem;" data-i18n="kbd-focus-ticker">聚焦 Ticker 输入框</td>
+                        <td style="padding:10px 0;text-align:right;">
+                            <kbd style="background:var(--bg-elevated,#2a2a3e);border:1px solid var(--border,#444);border-radius:5px;padding:3px 8px;font-size:.8rem;font-family:monospace;color:var(--text-primary,#fff);">/</kbd>
+                            <span style="color:var(--text-muted,#666);font-size:.8rem;margin:0 4px;" data-i18n="kbd-or">或</span>
+                            <kbd style="background:var(--bg-elevated,#2a2a3e);border:1px solid var(--border,#444);border-radius:5px;padding:3px 8px;font-size:.8rem;font-family:monospace;color:var(--text-primary,#fff);">Ctrl+K</kbd>
+                        </td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border,#333);">
+                        <td style="padding:10px 0;color:var(--text-secondary,#aaa);font-size:.875rem;" data-i18n="kbd-submit-analysis">提交分析</td>
+                        <td style="padding:10px 0;text-align:right;">
+                            <kbd style="background:var(--bg-elevated,#2a2a3e);border:1px solid var(--border,#444);border-radius:5px;padding:3px 8px;font-size:.8rem;font-family:monospace;color:var(--text-primary,#fff);">Ctrl+Enter</kbd>
+                        </td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border,#333);">
+                        <td style="padding:10px 0;color:var(--text-secondary,#aaa);font-size:.875rem;" data-i18n="kbd-close-panels">关闭面板 / 侧边栏</td>
+                        <td style="padding:10px 0;text-align:right;">
+                            <kbd style="background:var(--bg-elevated,#2a2a3e);border:1px solid var(--border,#444);border-radius:5px;padding:3px 8px;font-size:.8rem;font-family:monospace;color:var(--text-primary,#fff);">Esc</kbd>
+                        </td>
+                    </tr>
+                    <tr style="border-bottom:1px solid var(--border,#333);">
+                        <td style="padding:10px 0;color:var(--text-secondary,#aaa);font-size:.875rem;" data-i18n="kbd-quick-nav">快速导航</td>
+                        <td style="padding:10px 0;text-align:right;">
+                            <kbd style="background:var(--bg-elevated,#2a2a3e);border:1px solid var(--border,#444);border-radius:5px;padding:3px 8px;font-size:.8rem;font-family:monospace;color:var(--text-primary,#fff);">1</kbd>
+                            –
+                            <kbd style="background:var(--bg-elevated,#2a2a3e);border:1px solid var(--border,#444);border-radius:5px;padding:3px 8px;font-size:.8rem;font-family:monospace;color:var(--text-primary,#fff);">6</kbd>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 0;color:var(--text-secondary,#aaa);font-size:.875rem;" data-i18n="kbd-show-help">显示快捷键帮助</td>
+                        <td style="padding:10px 0;text-align:right;">
+                            <kbd style="background:var(--bg-elevated,#2a2a3e);border:1px solid var(--border,#444);border-radius:5px;padding:3px 8px;font-size:.8rem;font-family:monospace;color:var(--text-primary,#fff);">?</kbd>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border,#333);">
+                <p style="margin:0;font-size:.75rem;color:var(--text-muted,#666);" data-i18n="kbd-nav-pages">Dashboard · Stocks · Signals · Personas · Backtest · Settings</p>
+            </div>
+            <button type="button" onclick="closeKbdModal()" data-i18n="kbd-modal-close" style="margin-top:20px;width:100%;padding:9px;background:var(--accent,#d4a017);color:#000;border:none;border-radius:6px;font-size:.875rem;font-weight:600;cursor:pointer;">关闭</button>
+            <button type="button" onclick="closeKbdModal()" aria-label="Close" style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text-muted,#666);font-size:1.2rem;cursor:pointer;line-height:1;padding:4px;">×</button>
+        </div>
+    </div>
+
+    <script>
+    // Sidebar toggle
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+        try { localStorage.setItem('augur-sidebar', document.getElementById('sidebar').classList.contains('collapsed') ? 'collapsed' : 'expanded'); } catch(e) {}
+    }
+    function openSidebar() {
+        document.getElementById('sidebar').classList.add('open');
+        document.getElementById('backdrop').classList.add('visible');
+        var hb = document.querySelector('.hamburger-btn');
+        if (hb) hb.setAttribute('aria-expanded', 'true');
+    }
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('backdrop').classList.remove('visible');
+        var hb = document.querySelector('.hamburger-btn');
+        if (hb) hb.setAttribute('aria-expanded', 'false');
+    }
+
+    // Swipe-to-open sidebar on mobile (right-edge → left swipe)
+    (function() {
+        var touchStartX = 0, touchStartY = 0, touchMoved = false;
+        var SWIPE_THRESHOLD = 50;
+        var EDGE_WIDTH = 32;
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length !== 1) return;
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            touchMoved = false;
+        }, { passive: true });
+        document.addEventListener('touchmove', function(e) {
+            if (e.touches.length !== 1) return;
+            var dx = e.touches[0].clientX - touchStartX;
+            var dy = e.touches[0].clientY - touchStartY;
+            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) touchMoved = true;
+        }, { passive: true });
+        document.addEventListener('touchend', function() {
+            if (!touchMoved) return;
+            var sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+            // Right-edge swipe left → open sidebar
+            if (touchStartX <= EDGE_WIDTH && window.innerWidth <= 768) {
+                openSidebar();
+            }
+            // Swipe left on open sidebar → close
+            if (sidebar.classList.contains('open') && touchStartX > 180) {
+                closeSidebar();
+            }
+        });
+    })();
+
+    // Theme toggle
+    function toggleTheme() {
+        var html = document.documentElement;
+        var isDark = html.classList.contains('dark');
+        if (isDark) {
+            html.classList.remove('dark');
+            html.classList.add('light');
+            try { localStorage.setItem('augur-theme', 'light'); } catch(e) {}
+        } else {
+            html.classList.remove('light');
+            html.classList.add('dark');
+            try { localStorage.setItem('augur-theme', 'dark'); } catch(e) {}
+        }
+        updateThemeUI();
+        document.dispatchEvent(new CustomEvent('augur:theme-change', { detail: { theme: html.classList.contains('light') ? 'light' : 'dark' } }));
+    }
+
+    function updateThemeUI() {
+        var isDark = document.documentElement.classList.contains('dark');
+        var icon = document.getElementById('theme-icon');
+        var label = document.getElementById('theme-label');
+        if (icon) icon.textContent = isDark ? '\u{1F319}' : '\u2600\uFE0F';
+        if (label) {
+            var dict = window.I18N && window.I18N[window._augurLang || 'zh'];
+            if (dict) {
+                label.textContent = isDark ? (dict['theme-dark'] || '\u6DF1\u8272') : (dict['theme-light'] || '\u6D45\u8272');
+            } else {
+                label.textContent = isDark ? '\u6DF1\u8272' : '\u6D45\u8272';
+            }
+        }
+    }
+
+    // Restore theme on load
+    (function() {
+        try {
+            var saved = localStorage.getItem('augur-theme');
+            if (saved === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            }
+        } catch(e) {}
+    })();
+
+    // Global progress bar
+    function showProgress() {
+        var bar = document.getElementById('global-progress-bar');
+        if (bar) { bar.classList.remove('done'); bar.classList.add('active'); }
+    }
+    function hideProgress() {
+        var bar = document.getElementById('global-progress-bar');
+        if (bar) { bar.classList.remove('active'); bar.classList.add('done'); setTimeout(function() { bar.classList.remove('done'); }, 800); }
+    }
+
+    // Restore sidebar state
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            if (localStorage.getItem('augur-sidebar') === 'collapsed') {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        } catch(e) {}
+        updateThemeUI();
+        applyTerminalWorkspace();
+    });
+
+    function applyTerminalWorkspace() {
+        fetch('/api/workspace')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status !== 'ok' || !data.workspace) return;
+                var ws = data.workspace;
+                if (ws.hidden_nav && ws.hidden_nav.length) {
+                    ws.hidden_nav.forEach(function(page) {
+                        document.querySelectorAll('[data-page="' + page + '"]').forEach(function(el) {
+                            el.style.display = 'none';
+                        });
+                    });
+                }
+                var sb = document.getElementById('sidebar');
+                if (sb) {
+                    if (ws.sidebar_collapsed) {
+                        sb.classList.add('collapsed');
+                    } else {
+                        sb.classList.remove('collapsed');
+                    }
+                    try {
+                        localStorage.setItem(
+                            'augur-sidebar',
+                            ws.sidebar_collapsed ? 'collapsed' : 'expanded'
+                        );
+                    } catch(e) {}
+                }
+                if (ws.show_ticker_tape === false) {
+                    var tape = document.getElementById('ticker-tape-wrap');
+                    if (tape) tape.style.display = 'none';
+                }
+                try {
+                    var path = window.location.pathname;
+                    if (path === '/' && !sessionStorage.getItem('augur-workspace-routed')) {
+                        var target = null;
+                        var ticker = (ws.default_ticker || '').trim();
+                        if (ticker) {
+                            target = '/stocks?ticker=' + encodeURIComponent(ticker.toUpperCase());
+                        } else if (ws.default_page && ws.default_page !== '/') {
+                            target = ws.default_page;
+                        }
+                        if (target) {
+                            sessionStorage.setItem('augur-workspace-routed', '1');
+                            window.location.replace(target);
+                        }
+                    }
+                } catch(e) {}
+            })
+            .catch(function() {});
+    }
+
+    // Active nav highlight
+    document.addEventListener('DOMContentLoaded', function() {
+        var path = window.location.pathname;
+        document.querySelectorAll('.nav-item').forEach(function(item) {
+            var href = item.getAttribute('href');
+            if (path === href || (href !== '/' && path.startsWith(href))) {
+                item.classList.add('active');
+            } else if (href === '/' && path === '/') {
+                item.classList.add('active');
+            }
+        });
+        // Bottom nav highlight
+        document.querySelectorAll('.bottom-nav-item').forEach(function(item) {
+            var href = item.getAttribute('href');
+            if (path === href || (href !== '/' && path.startsWith(href))) {
+                item.classList.add('active');
+            } else if (href === '/' && path === '/') {
+                item.classList.add('active');
+            }
+        });
+        // Close mobile sidebar after navigation tap
+        document.querySelectorAll('.nav-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                if (window.innerWidth <= 768) closeSidebar();
+            });
+        });
+    });
+
+    // Toast utility
+    var _TOAST_ICONS = { success: '✓', warning: '⚠', error: '✗', info: 'ℹ' };
+    function showToast(message, type) {
+        type = type || 'success';
+        var container = document.getElementById('toast-container');
+        if (!container) return;
+        var toast = document.createElement('div');
+        toast.className = 'toast-msg toast-' + type;
+        var icon = document.createElement('span');
+        icon.className = 'toast-icon';
+        icon.textContent = _TOAST_ICONS[type] || '✓';
+        var text = document.createElement('span');
+        text.textContent = message;
+        toast.appendChild(icon);
+        toast.appendChild(text);
+        container.appendChild(toast);
+        // Nudge existing toasts up for stacking effect
+        var toasts = container.querySelectorAll('.toast-msg:not(.removing)');
+        toasts.forEach(function(t, i) {
+            t.style.transform = 'translateY(-' + (i * 4) + 'px) scale(' + (1 - i * 0.02) + ')';
+        });
+        setTimeout(function() {
+            toast.classList.add('removing');
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 3200);
+    }
+
+    // === v5.2 Global Utilities ===
+
+    // Format large numbers (e.g. 1500000000 -> "15.0B" or "15.0亿", 23400000 -> "23.4M" or "2340.0万")
+    function formatNumber(num) {
+        if (num === null || num === undefined || isNaN(num)) return '--';
+        var isEN = (window._augurLang === 'en');
+        var abs = Math.abs(num);
+        if (isEN) {
+            if (abs >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+            if (abs >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (abs >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return num.toFixed(2);
+        } else {
+            if (abs >= 1e8) return (num / 1e8).toFixed(1) + '亿';
+            if (abs >= 1e4) return (num / 1e4).toFixed(1) + '万';
+            if (abs >= 1e3) return num.toFixed(0);
+            return num.toFixed(2);
+        }
+    }
+
+    function formatNumberEN(num) {
+        if (num === null || num === undefined || isNaN(num)) return '--';
+        var abs = Math.abs(num);
+        if (abs >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+        if (abs >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+        if (abs >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+        return num.toFixed(2);
+    }
+
+    // Relative time (Auto-adapt Chinese / English)
+    function relativeTime(timestamp) {
+        if (!timestamp) return '';
+        var now = Date.now();
+        var diff = now - (typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime());
+        var isEN = (window._augurLang === 'en');
+        if (diff < 0) return isEN ? 'just now' : '刚刚';
+        var seconds = Math.floor(diff / 1000);
+        if (seconds < 60) return isEN ? 'just now' : '刚刚';
+        var minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return minutes + (isEN ? 'm ago' : '分钟前');
+        var hours = Math.floor(minutes / 60);
+        if (hours < 24) return hours + (isEN ? 'h ago' : '小时前');
+        var days = Math.floor(hours / 24);
+        if (days < 30) return days + (isEN ? 'd ago' : '天前');
+        var months = Math.floor(days / 30);
+        return months + (isEN ? 'mo ago' : '个月前');
+    }
+
+    // Copy to clipboard utility
+    function copyToClipboard(text, btn) {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(function() {
+            if (btn) {
+                var orig = btn.textContent;
+                btn.textContent = (typeof t === 'function' ? t('btn-copied') : '已复制');
+                btn.classList.add('copy-flash');
+                setTimeout(function() {
+                    btn.textContent = orig;
+                    btn.classList.remove('copy-flash');
+                }, 1500);
+            }
+            showToast(typeof t === 'function' ? t('toast-copy-success') : '已复制到剪贴板');
+        }).catch(function() {
+            showToast(typeof t === 'function' ? t('toast-copy-failed') : '复制失败', 'error');
+        });
+    }
+
+    // LocalStorage cache for analysis results (with safe access for private browsing)
+    var augurCache = {
+        KEY: 'augur-recent-analyses',
+        MAX: 10,
+        _storageAvailable: (function() {
+            try { var t = '__test__'; localStorage.setItem(t, '1'); localStorage.removeItem(t); return true; } catch(e) { return false; }
+        })(),
+        get: function() {
+            if (!this._storageAvailable) return [];
+            try {
+                return JSON.parse(localStorage.getItem(this.KEY)) || [];
+            } catch(e) { return []; }
+        },
+        add: function(ticker, result) {
+            if (!this._storageAvailable) return;
+            try {
+                var list = this.get();
+                list = list.filter(function(item) { return item.ticker !== ticker; });
+                list.unshift({ ticker: ticker, result: result, time: Date.now() });
+                if (list.length > this.MAX) list = list.slice(0, this.MAX);
+                localStorage.setItem(this.KEY, JSON.stringify(list));
+            } catch(e) { /* localStorage full or unavailable */ }
+        },
+        getLast: function(n) {
+            var items = this.get();
+            items.sort(function(a,b){return (b.time||0)-(a.time||0);});
+            return items.slice(0, n || 5);
+        },
+        clear: function() {
+            if (!this._storageAvailable) return;
+            try { localStorage.removeItem(this.KEY); } catch(e) {}
+        }
+    };
+
+    // Global error handler — user-friendly toast for uncaught errors
+    window.onerror = function(msg, url, line) {
+        var friendly = _friendlyError(msg);
+        if (typeof showToast === 'function') {
+            showToast(friendly, 'error');
+        }
+        return false;
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+        if (typeof showToast === 'function') {
+            var reason = event.reason ? (event.reason.message || String(event.reason)) : 'Promise rejected';
+            showToast(_friendlyError(reason), 'error');
+        }
+    });
+
+    // Map raw error strings → user-friendly Chinese messages
+    function _friendlyError(msg) {
+        if (!msg) return '发生了一个未知错误，请刷新页面重试';
+        var s = String(msg);
+        if (/failed to fetch|networkerror|network\s+error|fetch\s+failed/i.test(s))
+            return '网络连接失败，请检查网络后重试';
+        if (/timeout|timed\s*out|abort/i.test(s))
+            return '请求超时，服务器响应较慢，请稍后重试';
+        if (/401|unauthorized/i.test(s))
+            return '登录已过期，请重新登录';
+        if (/403|forbidden/i.test(s))
+            return '没有权限执行此操作';
+        if (/404|not\s*found/i.test(s))
+            return '请求的资源不存在';
+        if (/500|internal\s*server/i.test(s))
+            return '服务器内部错误，请稍后重试';
+        if (/502|503|504|gateway|unavailable/i.test(s))
+            return '服务暂时不可用，请稍后重试';
+        if (/cors|cross-origin/i.test(s))
+            return '跨域请求被阻止，请联系管理员';
+        if (s.length > 120) s = s.slice(0, 117) + '...';
+        return '出错了：' + s;
+    }
+
+    // Online/offline detection — show reconnect toast
+    window.addEventListener('offline', function() {
+        if (typeof showToast === 'function') {
+            showToast('网络已断开，部分功能不可用', 'warning');
+        }
+        var indicator = document.querySelector('.status-indicator');
+        if (indicator) { indicator.classList.remove('connected'); indicator.classList.add('disconnected'); }
+    });
+    window.addEventListener('online', function() {
+        if (typeof showToast === 'function') {
+            showToast('网络已恢复', 'success');
+        }
+        var indicator = document.querySelector('.status-indicator');
+        if (indicator) { indicator.classList.add('connected'); indicator.classList.remove('disconnected'); }
+    });
+
+    // Shared API/JWT token for dashboard fetch + WebSocket (?token=) when auth is enabled.
+    window.augurAuthToken = function() {
+        try {
+            return localStorage.getItem('augur_api_token') || localStorage.getItem('augur-token') || '';
+        } catch(e) {
+            return '';
+        }
+    };
+    function augurAttachAuth(url, options) {
+        options = options || {};
+        var token = window.augurAuthToken();
+        if (!token || typeof url !== 'string' || url.indexOf('/api/') === -1) {
+            return options;
+        }
+        if (!options.headers) options.headers = {};
+        if (options.headers instanceof Headers) {
+            if (!options.headers.has('Authorization')) {
+                options.headers.set('Authorization', 'Bearer ' + token);
+            }
+        } else {
+            if (!options.headers['Authorization']) {
+                options.headers['Authorization'] = 'Bearer ' + token;
+            }
+        }
+        return options;
+    }
+    (function() {
+        var nativeFetch = window.fetch;
+        window.fetch = function(url, options) {
+            if (typeof url === 'string') {
+                options = augurAttachAuth(url, options || {});
+            }
+            // Only intercept API calls for user-friendly error toasts
+            var isApiCall = typeof url === 'string' && (url.indexOf('/api/') !== -1 || url.indexOf('/health') !== -1);
+            var promise = nativeFetch.call(this, url, options);
+            if (isApiCall) {
+                return promise.catch(function(err) {
+                    if (typeof showToast === 'function') {
+                        showToast(_friendlyError(err.message || String(err)), 'error');
+                    }
+                    throw err;
+                });
+            }
+            return promise;
+        };
+    })();
+
+    // Escape HTML entities to prevent XSS
+    function escapeHtml(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
+    // Inline ticker validation with visual feedback (hero + stocks pages)
+    function validateTickerInput(inputId, hintId) {
+        var input = document.getElementById(inputId);
+        if (!input) return null;
+        var hint = hintId ? document.getElementById(hintId) : null;
+        var ticker = (input.value || '').trim().toUpperCase();
+        var msgEnter = (typeof t === 'function' ? t('msg-enter-ticker') : '请输入股票代码');
+        var msgInvalid = (typeof t === 'function' ? t('msg-invalid-ticker') : '无效的股票代码格式');
+        if (!ticker) {
+            input.classList.add('is-invalid');
+            input.setAttribute('aria-invalid', 'true');
+            if (hint) { hint.textContent = msgEnter; hint.style.display = 'block'; }
+            showToast(msgEnter, 'warning');
+            input.focus();
+            return null;
+        }
+        if (!/^[A-Za-z0-9.\-]{1,15}$/.test(ticker)) {
+            input.classList.add('is-invalid');
+            input.setAttribute('aria-invalid', 'true');
+            if (hint) { hint.textContent = msgInvalid; hint.style.display = 'block'; }
+            showToast(msgInvalid, 'error');
+            input.focus();
+            return null;
+        }
+        clearTickerInvalid(inputId, hintId);
+        return ticker;
+    }
+    function clearTickerInvalid(inputId, hintId) {
+        var input = document.getElementById(inputId);
+        if (input) { input.classList.remove('is-invalid'); input.removeAttribute('aria-invalid'); }
+        if (hintId) { var h = document.getElementById(hintId); if (h) h.style.display = 'none'; }
+    }
+
+    // Lightweight Markdown renderer (handles bold, headers, bullets, checkmarks)
+    // NOTE: Content comes from trusted backend Python code (persona reasoning).
+    // Do NOT blanket-escape HTML here - it breaks angle brackets in financial
+    // comparisons like "P/E < 15" or "ROE > 20%". Use escapeHtml() only for
+    // untrusted user content (e.g. custom persona names) inserted via innerHTML.
+    function renderMarkdown(md) {
+        if (!md) return '';
+        return md
+            // ## Headings → bold orange label
+            .replace(/^#{1,3}\s+(.+)$/gm, '<strong style="color:var(--accent-orange)">$1</strong>')
+            // **bold** → bold
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            // Bullet lines (• - *)
+            .replace(/^([•\-\*])\s+(.+)$/gm, '<span style="color:var(--text-muted)">&middot;</span> $2')
+            // Line breaks
+            .replace(/\n/g, '<br>');
+    }
+
+    // Rich Markdown renderer for deep reports — supports headings (h1-h3),
+    // GitHub-style tables, bold, bullet/numbered lists, blockquotes, hr and
+    // paragraphs so the generated report renders like the sample reports in
+    // cases/analysis-reports/ instead of a wall of raw text.
+    // Inline text is HTML-escaped first (financial "<"/">" stay literal),
+    // then a small allow-list of markdown markup is applied.
+    function renderReportMarkdown(md) {
+        if (!md) return '';
+        var esc = function(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        };
+        var inline = function(s) {
+            return esc(s)
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`([^`]+?)`/g, '<code class="md-code">$1</code>');
+        };
+        var lines = md.replace(/\r\n/g, '\n').split('\n');
+        var html = '';
+        var i = 0;
+        var listOpen = null; // 'ul' | 'ol'
+        var closeList = function() { if (listOpen) { html += '</' + listOpen + '>'; listOpen = null; } };
+
+        while (i < lines.length) {
+            var line = lines[i];
+            var trimmed = line.trim();
+
+            // Table block: header row + separator row of dashes
+            if (/^\|(.+)\|?$/.test(trimmed) && i + 1 < lines.length && /^\|?[\s:|-]+\|?$/.test(lines[i + 1].trim()) && lines[i + 1].indexOf('-') !== -1) {
+                closeList();
+                var splitRow = function(r) {
+                    return r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(function(c) { return c.trim(); });
+                };
+                var headers = splitRow(trimmed);
+                i += 2; // skip header + separator
+                html += '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+                headers.forEach(function(h) { html += '<th>' + inline(h) + '</th>'; });
+                html += '</tr></thead><tbody>';
+                while (i < lines.length && /^\|(.+)\|?$/.test(lines[i].trim())) {
+                    var cells = splitRow(lines[i]);
+                    html += '<tr>';
+                    cells.forEach(function(c) { html += '<td>' + inline(c) + '</td>'; });
+                    html += '</tr>';
+                    i++;
+                }
+                html += '</tbody></table></div>';
+                continue;
+            }
+
+            // Headings
+            var hMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+            if (hMatch) {
+                closeList();
+                var level = Math.min(hMatch[1].length, 4);
+                html += '<h' + level + ' class="md-h md-h' + level + '">' + inline(hMatch[2]) + '</h' + level + '>';
+                i++; continue;
+            }
+
+            // Horizontal rule
+            if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+                closeList();
+                html += '<hr class="md-hr">';
+                i++; continue;
+            }
+
+            // Blockquote
+            if (/^>\s?/.test(trimmed)) {
+                closeList();
+                html += '<blockquote class="md-quote">' + inline(trimmed.replace(/^>\s?/, '')) + '</blockquote>';
+                i++; continue;
+            }
+
+            // Unordered list
+            if (/^[-*•]\s+/.test(trimmed)) {
+                if (listOpen !== 'ul') { closeList(); html += '<ul class="md-ul">'; listOpen = 'ul'; }
+                html += '<li>' + inline(trimmed.replace(/^[-*•]\s+/, '')) + '</li>';
+                i++; continue;
+            }
+
+            // Ordered list
+            if (/^\d+\.\s+/.test(trimmed)) {
+                if (listOpen !== 'ol') { closeList(); html += '<ol class="md-ol">'; listOpen = 'ol'; }
+                html += '<li>' + inline(trimmed.replace(/^\d+\.\s+/, '')) + '</li>';
+                i++; continue;
+            }
+
+            // Blank line
+            if (trimmed === '') { closeList(); i++; continue; }
+
+            // Paragraph (gather consecutive non-empty, non-special lines)
+            closeList();
+            var para = [trimmed];
+            i++;
+            while (i < lines.length) {
+                var nxt = lines[i].trim();
+                if (nxt === '' || /^(#{1,6})\s+/.test(nxt) || /^[-*•]\s+/.test(nxt) ||
+                    /^\d+\.\s+/.test(nxt) || /^>\s?/.test(nxt) || /^\|(.+)\|?$/.test(nxt) ||
+                    /^(-{3,}|\*{3,}|_{3,})$/.test(nxt)) break;
+                para.push(nxt);
+                i++;
+            }
+            html += '<p class="md-p">' + inline(para.join(' ')) + '</p>';
+        }
+        closeList();
+        return html;
+    }
+
+    /** Read a CSS custom property for theme-aware SVG/chart colors. */
+    function reportThemeColor(cssVar, fallback) {
+        var val = getComputedStyle(document.documentElement).getPropertyValue(cssVar);
+        return (val && val.trim()) ? val.trim() : fallback;
+    }
+
+    function isLightTheme() {
+        return document.documentElement.classList.contains('light');
+    }
+
+    /** Build a standalone HTML document for report export (respects light/dark). */
+    function buildReportHTMLExport(ticker, renderedBody) {
+        var date = new Date().toISOString().slice(0, 10);
+        var light = isLightTheme();
+        var bodyBg = light ? '#fbf7ee' : '#0d1117';
+        var bodyFg = light ? '#2a2118' : '#e8e8f0';
+        var heading = light ? '#503810' : '#ff8c00';
+        var headingSub = light ? '#6b4f1d' : '#ffa726';
+        var tableBorder = light ? '#c4bba6' : '#30363d';
+        var tableHeadBg = light ? 'rgba(0,0,0,0.04)' : '#161b22';
+        var tableStripe = light ? 'rgba(0,0,0,0.02)' : '#161b22';
+        var codeBg = light ? 'rgba(0,0,0,0.05)' : '#161b22';
+        var quoteFg = light ? '#4a3e30' : '#8b949e';
+        var metaFg = light ? '#5a5142' : '#8b949e';
+        var footerFg = light ? '#5a5142' : '#8b949e';
+        var styles = 'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:'
+            + bodyBg + ';color:' + bodyFg + ';padding:40px;max-width:900px;margin:0 auto;line-height:1.8;}'
+            + 'h1{color:' + heading + ';margin-top:1.5em;font-size:1.8em;border-bottom:2px solid ' + tableBorder + ';padding-bottom:8px;}'
+            + 'h2{color:' + heading + ';margin-top:1.5em;font-size:1.3em;border-left:4px solid ' + heading + ';padding-left:12px;}'
+            + 'h3{color:' + headingSub + ';margin-top:1.2em;font-size:1.1em;}'
+            + 'h4{color:' + headingSub + ';margin-top:1em;}'
+            + 'table{width:100%;border-collapse:collapse;margin:1em 0;font-size:0.9em;}'
+            + 'th,td{border:1px solid ' + tableBorder + ';padding:10px 14px;text-align:left;color:' + bodyFg + ';}'
+            + 'th{background:' + tableHeadBg + ';color:' + heading + ';font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px;}'
+            + 'tr:nth-child(even){background:' + tableStripe + ';}'
+            + 'code{background:' + codeBg + ';padding:2px 6px;border-radius:3px;font-size:0.85em;}'
+            + 'blockquote{border-left:3px solid ' + heading + ';padding-left:14px;color:' + quoteFg + ';margin:1em 0;font-style:italic;}'
+            + 'hr{border:none;border-top:1px solid ' + tableBorder + ';margin:2em 0;}'
+            + 'strong{color:' + bodyFg + ';}'
+            + 'ul,ol{padding-left:1.5em;}li{margin:6px 0;}'
+            + 'p{margin:0.8em 0;}'
+            + '.header{text-align:center;margin-bottom:2em;padding:24px 0;border-bottom:2px solid ' + tableBorder + ';}'
+            + '.header h1{border:none;padding:0;margin:0;}'
+            + '.footer{text-align:center;margin-top:3em;padding-top:1em;border-top:1px solid ' + tableBorder + ';color:' + footerFg + ';font-size:0.8em;}'
+            + '.meta{color:' + metaFg + ';font-size:0.85em;margin-top:8px;}'
+            + '@media print{body{background:#fff;color:#222;padding:20px;}h1,h2,h3{color:#333;}th{background:#f0f0f0;color:#333;}td,th{border-color:#ccc;}}';
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeHtml(ticker) + ' - Augur Analysis Report</title><style>'
+            + styles + '</style></head><body>'
+            + '<div class="header"><h1>' + escapeHtml(ticker) + ' Deep Analysis Report</h1>'
+            + '<p class="meta">Generated by Augur Multi-Agent Investment Analysis Platform | ' + date + '</p></div>'
+            + renderedBody
+            + '<div class="footer">Augur v8.2.1 | 18 AI Investment Masters Consensus Analysis | github.com/augur-agents</div>'
+            + '</body></html>';
+    }
+
+    /** Expand collapsible report sections (if present) then trigger print/PDF. */
+    function prepareReportPrint(opts) {
+        opts = opts || {};
+        if (typeof opts.beforePrint === 'function') opts.beforePrint();
+        else if (typeof expandAllReportSections === 'function') expandAllReportSections();
+        showToast(typeof _t === 'function' ? _t('report-toast-print-prep') : 'Preparing print/PDF...', 'info');
+        setTimeout(function() { window.print(); }, opts.delay || 350);
+    }
+
+    // Elapsed-time + staged progress messaging for long-running requests
+    // (analysis runs 18 agents, so feedback prevents "is it frozen?" anxiety).
+    var augurTimers = {};
+    function startProgress(elId, opts) {
+        opts = opts || {};
+        var el = document.getElementById(elId);
+        if (!el) return;
+        var stages = opts.stages || (typeof t === 'function' ? [
+            t('progress-analyze-1'),
+            t('progress-analyze-2'),
+            t('progress-analyze-3'),
+            t('progress-analyze-4')
+        ] : [
+            '正在唤醒 18 位投资大师...',
+            '大师们正在独立研读财务数据...',
+            '正在汇总多空观点、计算共识...',
+            '马上就好，正在生成最终结论...'
+        ]);
+        var prefix = opts.prefix || '';
+        var start = Date.now();
+        if (augurTimers[elId]) clearInterval(augurTimers[elId]);
+        function tick() {
+            var secs = Math.floor((Date.now() - start) / 1000);
+            var stageIdx = Math.min(Math.floor(secs / 8), stages.length - 1);
+            el.textContent = prefix + stages[stageIdx] + ' (' + secs + 's)';
+        }
+        tick();
+        augurTimers[elId] = setInterval(tick, 1000);
+    }
+    function stopProgress(elId) {
+        if (augurTimers[elId]) { clearInterval(augurTimers[elId]); delete augurTimers[elId]; }
+    }
+
+    // fetch() wrapper with a timeout so a hung/slow backend surfaces a clear
+    // actionable error instead of an endless spinner ("点击没反应" feeling).
+    function fetchWithTimeout(url, options, timeoutMs) {
+        options = options || {};
+        timeoutMs = timeoutMs || 90000;
+        options = augurAttachAuth(url, options);
+        if (typeof AbortController === 'undefined') return fetch(url, options);
+        var controller = new AbortController();
+        var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+        options.signal = controller.signal;
+        showProgress();
+        return fetch(url, options)
+            .then(function(r) { clearTimeout(timer); hideProgress(); return r; })
+            .catch(function(err) { clearTimeout(timer); hideProgress(); throw err; });
+    }
+
+    // Keyboard shortcuts modal
+    function openKbdModal() {
+        var m = document.getElementById('kbd-modal');
+        if (!m) return;
+        m.style.display = 'flex';
+        m.focus();
+        if (typeof initI18n === 'function') initI18n();
+    }
+    function closeKbdModal() {
+        var m = document.getElementById('kbd-modal');
+        if (m) m.style.display = 'none';
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        var tag = (e.target.tagName || '').toLowerCase();
+        var inInput = (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable);
+
+        // Ctrl+K or / (not in input) -> focus ticker input
+        if ((e.key === '/' && !inInput) || (e.key === 'k' && (e.ctrlKey || e.metaKey))) {
+            e.preventDefault();
+            var tickerInput = document.getElementById('hero-ticker') || document.getElementById('inp-ticker') || document.getElementById('quick-ticker');
+            if (tickerInput) { tickerInput.focus(); tickerInput.select(); }
+            return;
+        }
+
+        // Ctrl+Enter -> submit hero analyze or primary form button
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            var heroBtn = document.getElementById('hero-analyze-btn');
+            if (heroBtn && !heroBtn.disabled) {
+                heroBtn.click();
+                return;
+            }
+            var primaryBtn = document.querySelector('.btn-primary');
+            if (primaryBtn) primaryBtn.click();
+            return;
+        }
+
+        // ? -> keyboard shortcuts modal (not in input)
+        if (e.key === '?' && !inInput) {
+            e.preventDefault();
+            var m = document.getElementById('kbd-modal');
+            if (m && m.style.display === 'flex') { closeKbdModal(); } else { openKbdModal(); }
+            return;
+        }
+
+        // Escape -> close expanded cards or modals
+        if (e.key === 'Escape') {
+            // Close keyboard shortcuts modal
+            var kbdM = document.getElementById('kbd-modal');
+            if (kbdM && kbdM.style.display === 'flex') { closeKbdModal(); return; }
+            // Close expanded persona rows
+            document.querySelectorAll('.persona-row.expanded').forEach(function(row) {
+                row.classList.remove('expanded');
+            });
+            // Close expanded agent reasoning
+            document.querySelectorAll('.agent-reasoning.expanded').forEach(function(div) {
+                div.classList.remove('expanded');
+            });
+            // Close mobile sidebar
+            closeSidebar();
+            return;
+        }
+
+        // Number keys 1-5 for quick navigation (not in input)
+        if (!inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            var navMap = { '1': '/', '2': '/stocks', '3': '/signals', '4': '/personas', '5': '/backtest', '6': '/settings' };
+            if (navMap[e.key]) {
+                window.location.href = navMap[e.key];
+                return;
+            }
+        }
+    });
+
+    // ====== Global Table Sorting Utility ======
+    function initSortableTable(tableId) {
+        var table = document.getElementById(tableId);
+        if (!table) return;
+        var headers = table.querySelectorAll('th[data-sort]');
+        headers.forEach(function(th) {
+            th.style.cursor = 'pointer';
+            th.style.userSelect = 'none';
+            th.addEventListener('click', function() {
+                var colIdx = Array.prototype.indexOf.call(th.parentNode.children, th);
+                var tbody = table.querySelector('tbody') || table;
+                var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+                var isAsc = th.getAttribute('data-sort-dir') === 'asc';
+                // Remove indicators from all headers
+                headers.forEach(function(h) {
+                    h.removeAttribute('data-sort-dir');
+                    var ind = h.querySelector('.sort-indicator');
+                    if (ind) ind.remove();
+                });
+                // Set new direction
+                var dir = isAsc ? 'desc' : 'asc';
+                th.setAttribute('data-sort-dir', dir);
+                var indicator = document.createElement('span');
+                indicator.className = 'sort-indicator';
+                indicator.textContent = dir === 'asc' ? ' \u25B2' : ' \u25BC';
+                indicator.style.fontSize = '0.7em';
+                indicator.style.opacity = '0.7';
+                th.appendChild(indicator);
+                // Sort rows
+                rows.sort(function(a, b) {
+                    var aText = (a.children[colIdx] ? a.children[colIdx].textContent : '').trim();
+                    var bText = (b.children[colIdx] ? b.children[colIdx].textContent : '').trim();
+                    var aNum = parseFloat(aText.replace(/[^0-9.\-]/g, ''));
+                    var bNum = parseFloat(bText.replace(/[^0-9.\-]/g, ''));
+                    var isNumeric = !isNaN(aNum) && !isNaN(bNum) && aText !== '' && bText !== '';
+                    var cmp;
+                    if (isNumeric) {
+                        cmp = aNum - bNum;
+                    } else {
+                        cmp = aText.localeCompare(bText, undefined, {numeric: true});
+                    }
+                    return dir === 'asc' ? cmp : -cmp;
+                });
+                rows.forEach(function(row) { tbody.appendChild(row); });
+            });
+        });
+    }
+
+    // Connection status - ping /health every 30s
+    (function() {
+        var statusDot = document.querySelector('.status-dot');
+        var statusText = document.querySelector('.status-text');
+        var indicator = document.querySelector('.status-indicator');
+        if (!statusDot) return;
+
+        var healthCheckTimer = null;
+
+        function checkHealth() {
+            fetch('/health', { method: 'GET' })
+                .then(function(r) {
+                    if (r.ok) {
+                        indicator.classList.add('connected');
+                        indicator.classList.remove('disconnected');
+                        statusText.textContent = (typeof t === 'function') ? t('status-connected') : '系统就绪';
+                    } else {
+                        indicator.classList.remove('connected');
+                        indicator.classList.add('disconnected');
+                        statusText.textContent = (typeof t === 'function') ? t('status-error') : '连接异常';
+                    }
+                })
+                .catch(function() {
+                    indicator.classList.remove('connected');
+                    indicator.classList.add('disconnected');
+                    statusText.textContent = (typeof t === 'function') ? t('status-disconnected') : '连接断开';
+                });
+        }
+
+        function startHealthCheck() {
+            if (healthCheckTimer) clearInterval(healthCheckTimer);
+            healthCheckTimer = setInterval(checkHealth, 30000);
+        }
+
+        // Pause polling when page is hidden, resume when visible
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                if (healthCheckTimer) { clearInterval(healthCheckTimer); healthCheckTimer = null; }
+            } else {
+                checkHealth();
+                startHealthCheck();
+            }
+        });
+
+        startHealthCheck();
+    })();
+    </script>
+    <script src="/static/js/i18n.js?v=8.1.0" defer></script>
+    <script src="/static/js/command-palette.js?v=11.0.0" defer></script>
+    <script src="/static/js/theme-toggle.js?v=8.1.0" defer></script>
+    {% block extra_scripts %}{% endblock %}
+
+    <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js').catch(function() {});
+  });
+}
+</script>
+
+    <!-- Phase B: Ticker Tape -->
+    <script>
+    (function() {
+        var wrap = document.getElementById('ticker-tape-wrap');
+        var track = document.getElementById('ticker-tape-track');
+        var pauseBtn = document.getElementById('ticker-tape-pause');
+        if (!wrap || !track) return;
+
+        var paused = false;
+        var pausedBadge = document.getElementById('tape-paused-badge');
+        function updatePauseState(isPaused) {
+            paused = isPaused;
+            wrap.classList.toggle('paused', paused);
+            pauseBtn.textContent = paused ? '▶' : '⏸';
+            if (pausedBadge) pausedBadge.hidden = !paused;
+            var resumeKey = 'ticker-resume-title';
+            var pauseKey = 'ticker-pause-title';
+            var resumeAria = 'a11y-ticker-resume';
+            var pauseAria = 'a11y-ticker-pause';
+            if (typeof window.t === 'function') {
+                pauseBtn.title = paused ? window.t(resumeKey) : window.t(pauseKey);
+                pauseBtn.setAttribute('aria-label', paused ? window.t(resumeAria) : window.t(pauseAria));
+                pauseBtn.setAttribute('data-i18n-aria', paused ? resumeAria : pauseAria);
+                pauseBtn.setAttribute('data-i18n-title', paused ? resumeKey : pauseKey);
+                if (pausedBadge && typeof window.t === 'function') {
+                    pausedBadge.textContent = window.t('ticker-paused-badge') || '⏸ 已暂停 — 点击继续';
+                }
+            } else {
+                pauseBtn.title = paused ? '继续滚动' : '暂停/继续';
+                pauseBtn.setAttribute('aria-label', paused ? '继续滚动' : '暂停滚动');
+            }
+        }
+        pauseBtn && pauseBtn.addEventListener('click', function() { updatePauseState(!paused); });
+
+        // Hover-to-pause: pause tape on mouseenter, resume on mouseleave (unless explicitly paused)
+        var hoverPaused = false;
+        wrap.addEventListener('mouseenter', function() {
+            if (!paused) { hoverPaused = true; wrap.classList.add('paused'); }
+        });
+        wrap.addEventListener('mouseleave', function() {
+            if (hoverPaused) {
+                hoverPaused = false;
+                if (!paused) wrap.classList.remove('paused');
+            }
+        });
+
+        function buildTape(prices, pctIsDecimal) {
+            if (!prices || !prices.length) return;
+            var html = '';
+            prices.forEach(function(p) {
+                // market-movers returns decimal (0.04 = 4%), WS returns pct (4.0 = 4%)
+                var rawPct = p.change_pct || 0;
+                var pct = pctIsDecimal ? rawPct * 100 : rawPct;
+                var dir = pct > 0 ? 'tape-up' : pct < 0 ? 'tape-down' : 'tape-flat';
+                var sign = pct > 0 ? '+' : '';
+                var src = (p.source === 'live') ? '' : ' tape-mock';
+                var sym = p.ticker || p.symbol || '';
+                var price = typeof p.price === 'number' ? p.price.toFixed(2) : '--';
+                html += '<span class="tape-item ' + dir + src + '">' +
+                    '<span class="tape-source-dot"></span>' +
+                    '<span class="tape-ticker">' + sym + '</span>' +
+                    '<span class="tape-price">$' + price + '</span>' +
+                    '<span class="tape-change">' + sign + Math.abs(pct).toFixed(2) + '%</span>' +
+                    '</span>';
+            });
+            // Duplicate for seamless loop
+            track.innerHTML = html + html;
+            // Reset animation
+            track.style.animation = 'none';
+            track.offsetHeight; // reflow
+            track.style.animation = '';
+        }
+
+        function fetchPrices() {
+            fetch('/api/market-movers')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var items = [];
+                    (d.gainers || []).forEach(function(g) { items.push(g); });
+                    (d.losers  || []).forEach(function(l) { items.push(l); });
+                    // market-movers change_pct is decimal fraction (0.04 = 4%)
+                    if (items.length) buildTape(items, true);
+                })
+                .catch(function() {});
+        }
+
+        // WebSocket price updates (change_pct already in %)
+        function connectWS() {
+            try {
+                var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+                var wsUrl = proto + '://' + location.host + '/ws/prices';
+                var token = window.augurAuthToken ? window.augurAuthToken() : '';
+                if (token) {
+                    wsUrl += (wsUrl.indexOf('?') === -1 ? '?' : '&') + 'token=' + encodeURIComponent(token);
+                }
+                var ws = new WebSocket(wsUrl);
+                ws.onmessage = function(e) {
+                    try {
+                        var d = JSON.parse(e.data);
+                        if (d.type === 'price_update' && d.prices && d.prices.length) {
+                            buildTape(d.prices, false);
+                        }
+                    } catch(err) {}
+                };
+                ws.onerror = function() {};
+                ws.onclose = function() {
+                    // Reconnect after 10s on unexpected close
+                    setTimeout(connectWS, 10000);
+                };
+            } catch(err) {}
+        }
+
+        // Initial load via REST (fast), then upgrade to WS
+        fetchPrices();
+        connectWS();
+        // Refresh every 60s as fallback
+        setInterval(fetchPrices, 60000);
+    })();
+    </script>
+
+    <!-- Theme toggle FAB (fixed bottom-right) -->
+    <button type="button" class="theme-toggle-fab" onclick="augurTheme.toggle()" aria-label="Toggle dark/light theme" title="Toggle theme">
+        <span class="icon-moon" aria-hidden="true">🌙</span>
+        <span class="icon-sun" aria-hidden="true">☀️</span>
+    </button>
+</body>
+</html>

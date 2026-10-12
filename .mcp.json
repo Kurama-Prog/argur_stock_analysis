@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "augur": {
+      "command": "augur-mcp",
+      "description": "Augur Investment Analysis — 18 masters, committee mode, workflow pipelines, real-time data",
+      "tools": [
+        "augur_analyze",
+        "augur_consensus",
+        "augur_committee",
+        "augur_debate",
+        "augur_fetch",
+        "augur_sentiment",
+        "augur_list_personas",
+        "augur_configure",
+        "augur_create_persona",
+        "augur_workflow",
+        "augur_workspace_get",
+        "augur_workspace_set",
+        "augur_workspace_profiles",
+        "augur_run_skill"
+      ],
+      "skills": [
+        "augur-buffett",
+        "augur-graham",
+        "augur-munger",
+        "augur-lynch",
+        "augur-dalio",
+        "augur-soros",
+        "augur-marks",
+        "augur-cathie-wood",
+        "augur-fisher",
+        "augur-thiel",
+        "augur-arps",
+        "augur-aschenbrenner",
+        "augur-dayu",
+        "augur-duan-yongping",
+        "augur-zhang-lei",
+        "augur-li-lu",
+        "augur-dan-bin",
+        "augur-serenity",
+        "augur-committee"
+      ]
+    }
+  }
+}

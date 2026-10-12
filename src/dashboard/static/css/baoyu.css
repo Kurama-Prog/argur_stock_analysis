@@ -1,0 +1,454 @@
+/* ============================================
+   Augur - Baoyu (宝玉) Comic Style Theme
+   Inspired by ligne-claire (clear line) aesthetic
+   ============================================ */
+
+/* --- Root variables --- */
+:root {
+    --baoyu-bg: #f5f0e8;
+    --baoyu-bg-card: #fafafa;
+    --baoyu-border: #2c1810;
+    --baoyu-border-light: #8b7355;
+    --baoyu-text: #2c1810;
+    --baoyu-text-muted: #6b5b4e;
+    --baoyu-accent-blue: #4a90d9;
+    --baoyu-accent-green: #4caf50;
+    --baoyu-accent-red: #e53935;
+    --baoyu-accent-yellow: #ffc107;
+    --baoyu-accent-purple: #9c27b0;
+    --baoyu-shadow: rgba(0,0,0,0.08);
+    --baoyu-font: 'Comic Neue', 'Segoe UI', 'Noto Sans SC', sans-serif;
+    --baoyu-border-radius: 12px;
+}
+
+/* --- Body --- */
+body.baoyu-theme {
+    background-color: var(--baoyu-bg);
+    color: var(--baoyu-text);
+    font-family: var(--baoyu-font);
+    background-image: 
+        radial-gradient(circle at 10% 20%, rgba(74,144,217,0.05) 0%, transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(76,175,80,0.05) 0%, transparent 50%);
+}
+
+/* --- Navbar --- */
+body.baoyu-theme .navbar {
+    background-color: #fff !important;
+    border-bottom: 3px solid var(--baoyu-border);
+    box-shadow: none;
+}
+
+body.baoyu-theme .navbar-brand {
+    color: var(--baoyu-border) !important;
+    font-weight: 800;
+    font-size: 1.4rem;
+}
+
+body.baoyu-theme .nav-link {
+    color: var(--baoyu-text-muted) !important;
+    font-weight: 600;
+    border: 2px solid transparent;
+    border-radius: 20px;
+    margin: 0 2px;
+    padding: 6px 14px;
+    transition: all 0.2s;
+}
+
+body.baoyu-theme .nav-link:hover,
+body.baoyu-theme .nav-link.active {
+    color: var(--baoyu-border) !important;
+    border-color: var(--baoyu-border);
+    background-color: #fff;
+}
+
+/* --- Cards --- */
+body.baoyu-theme .card {
+    background-color: var(--baoyu-bg-card);
+    border: 2px solid var(--baoyu-border);
+    border-radius: var(--baoyu-border-radius);
+    box-shadow: 4px 4px 0 var(--baoyu-shadow);
+    color: var(--baoyu-text);
+}
+
+body.baoyu-theme .card-header {
+    background-color: transparent;
+    border-bottom: 2px dashed var(--baoyu-border-light);
+    font-weight: 700;
+    padding: 12px 16px;
+}
+
+body.baoyu-theme .card-footer {
+    background-color: transparent;
+    border-top: 2px dashed var(--baoyu-border-light);
+}
+
+/* --- Buttons --- */
+body.baoyu-theme .btn {
+    border: 2px solid var(--baoyu-border);
+    border-radius: 8px;
+    font-weight: 700;
+    transition: all 0.15s;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+}
+
+body.baoyu-theme .btn-primary {
+    background-color: var(--baoyu-accent-blue);
+    border-color: var(--baoyu-border);
+    color: #fff;
+}
+
+body.baoyu-theme .btn-primary:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+}
+
+body.baoyu-theme .btn-success {
+    background-color: var(--baoyu-accent-green);
+    border-color: var(--baoyu-border);
+    color: #fff;
+}
+
+body.baoyu-theme .btn-warning {
+    background-color: var(--baoyu-accent-yellow);
+    border-color: var(--baoyu-border);
+}
+
+body.baoyu-theme .btn-outline-light {
+    border-color: var(--baoyu-border-light);
+    color: var(--baoyu-text);
+}
+
+/* --- Tables --- */
+body.baoyu-theme .table {
+    color: var(--baoyu-text);
+    border-color: var(--baoyu-border-light);
+}
+
+body.baoyu-theme .table th {
+    border-bottom: 2px solid var(--baoyu-border);
+    font-weight: 700;
+}
+
+body.baoyu-theme .table-striped > tbody > tr:nth-of-type(odd) {
+    background-color: rgba(74,144,217,0.05);
+}
+
+/* --- Badges --- */
+body.baoyu-theme .badge {
+    border: 1.5px solid var(--baoyu-border);
+    border-radius: 6px;
+    font-weight: 700;
+    padding: 4px 10px;
+}
+
+/* --- Alerts --- */
+body.baoyu-theme .alert {
+    border: 2px solid var(--baoyu-border);
+    border-radius: var(--baoyu-border-radius);
+    background-color: #fff;
+    color: var(--baoyu-text);
+}
+
+/* --- Persona cards (comic character style) --- */
+body.baoyu-theme .persona-card {
+    border: 3px solid var(--baoyu-border);
+    border-radius: 16px;
+    background-color: #fff;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+body.baoyu-theme .persona-card:hover {
+    transform: translateY(-4px);
+}
+
+body.baoyu-theme .persona-card .card-header {
+    border-bottom: 2px solid var(--baoyu-border);
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+body.baoyu-theme .persona-avatar {
+    width: 64px;
+    height: 64px;
+    border: 2px solid var(--baoyu-border);
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* --- Comic speech bubbles --- */
+body.baoyu-theme .speech-bubble {
+    position: relative;
+    background: #fff;
+    border: 2px solid var(--baoyu-border);
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin: 8px 0;
+}
+
+body.baoyu-theme .speech-bubble::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 12px;
+    border: 6px solid transparent;
+    border-right-color: var(--baoyu-border);
+}
+
+body.baoyu-theme .speech-bubble::after {
+    content: '';
+    position: absolute;
+    left: -9px;
+    top: 13px;
+    border: 5px solid transparent;
+    border-right-color: #fff;
+}
+
+/* --- Forms --- */
+body.baoyu-theme .form-control,
+body.baoyu-theme .form-select {
+    border: 2px solid var(--baoyu-border);
+    border-radius: 8px;
+    background-color: #fff;
+    color: var(--baoyu-text);
+}
+
+body.baoyu-theme .form-control:focus,
+body.baoyu-theme .form-select:focus {
+    border-color: var(--baoyu-accent-blue);
+    box-shadow: 0 0 0 3px rgba(74,144,217,0.2);
+}
+
+/* --- Lists --- */
+body.baoyu-theme .list-group-item {
+    background-color: #fff;
+    border: 1.5px solid var(--baoyu-border-light);
+    color: var(--baoyu-text);
+}
+
+/* --- Progress bars --- */
+body.baoyu-theme .progress {
+    border: 1.5px solid var(--baoyu-border);
+    background-color: #e8e0d0;
+    height: 20px;
+    border-radius: 10px;
+}
+
+body.baoyu-theme .progress-bar {
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+/* --- Footer --- */
+body.baoyu-theme footer,
+body.baoyu-theme .footer {
+    border-top: 2px dashed var(--baoyu-border-light);
+    color: var(--baoyu-text-muted);
+}
+
+/* --- Ticker color coding --- */
+body.baoyu-theme .text-up { color: var(--baoyu-accent-green) !important; }
+body.baoyu-theme .text-down { color: var(--baoyu-accent-red) !important; }
+body.baoyu-theme .bg-signal-bullish { background-color: rgba(76,175,80,0.15); }
+body.baoyu-theme .bg-signal-bearish { background-color: rgba(229,57,53,0.15); }
+body.baoyu-theme .bg-signal-neutral { background-color: rgba(255,193,7,0.15); }
+
+/* --- Theme toggle --- */
+.theme-toggle {
+    cursor: pointer;
+    border: 2px solid var(--baoyu-border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #fff;
+    color: var(--baoyu-border);
+}
+
+/* ============================================
+   Enhanced UI/UX Styles
+   Responsive, animations, interactions
+   ============================================ */
+
+/* --- Responsive Breakpoints --- */
+@media (max-width: 768px) {
+    h1 { font-size: 1.8rem !important; }
+    h2 { font-size: 1.4rem !important; }
+    .container { padding-left: 12px; padding-right: 12px; }
+    .persona-card-enhanced .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .card-body { padding: 12px; }
+    .signal-badge { font-size: 0.85rem; padding: 0.3em 0.6em; }
+    .row.g-3 > [class*="col-md-"], .row.g-3 > [class*="col-lg-"] { flex: 0 0 100%; max-width: 100%; }
+    .navbar-brand { font-size: 1.1rem !important; }
+    .persona-avatar { width: 40px !important; height: 40px !important; }
+    .chart-container { max-height: 180px !important; }
+}
+
+@media (max-width: 992px) {
+    .row.g-3 > .col-lg-4 { flex: 0 0 50%; max-width: 50%; }
+    h1 { font-size: 2rem !important; }
+    .card-body { padding: 14px; }
+}
+
+/* --- Card Hover & Interaction --- */
+.card-hover-glow {
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.card-hover-glow:hover {
+    box-shadow: 0 0 20px rgba(0,255,136,0.15);
+    transform: translateY(-2px);
+}
+
+/* --- Expandable Cards --- */
+.expandable-card .card-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.expandable-card.expanded .card-detail {
+    max-height: 500px;
+}
+
+/* --- Fade-in Animation --- */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+/* --- Toast Notifications --- */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast-notification {
+    background: #1a1a1a;
+    border: 1px solid #1a3a2a;
+    border-left: 4px solid #00ff88;
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    animation: slideInRight 0.3s ease forwards;
+    max-width: 360px;
+}
+
+.toast-notification.toast-error {
+    border-left-color: #e74c3c;
+}
+
+.toast-notification.toast-warning {
+    border-left-color: #f39c12;
+}
+
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(100px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideOutRight {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(100px); }
+}
+
+.toast-notification.removing {
+    animation: slideOutRight 0.3s ease forwards;
+}
+
+/* --- Filter/Search Input --- */
+.filter-input {
+    background: #111;
+    border: 1px solid #1a3a2a;
+    color: #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 16px;
+}
+
+.filter-input:focus {
+    border-color: #00ff88;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0,255,136,0.2);
+    background: #111;
+    color: #e0e0e0;
+}
+
+.filter-input::placeholder {
+    color: #555;
+}
+
+.filter-tag {
+    background: #1a1a1a;
+    border: 1px solid #1a3a2a;
+    color: #888;
+    border-radius: 16px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.filter-tag:hover {
+    border-color: #00ff88;
+    color: #00ff88;
+    background: #1a1a1a;
+}
+
+.filter-tag.active {
+    background: #1a3a2a;
+    border-color: #00ff88;
+    color: #00ff88;
+}
+
+/* --- Loading Pulse --- */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.loading-pulse {
+    animation: pulse 1.5s infinite;
+}
+
+/* --- Form dark theme enhancements --- */
+.form-control:focus,
+.form-select:focus {
+    border-color: #00ff88 !important;
+    box-shadow: 0 0 0 2px rgba(0,255,136,0.2) !important;
+}
+
+/* --- Better Typography --- */
+h1, h2, h3, h4, h5 {
+    letter-spacing: -0.5px;
+}
+
+/* --- Smooth scrollbar for dark theme --- */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1a3a2a;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #00ff88;
+}

@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}绩效追踪 - Augur{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@media (max-width: 768px) {
+    .perf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .perf-table-wrap table { min-width: 480px; }
+}
+</style>
+{% endblock %}
+{% block content %}
+
+<header class="page-header mb-16">
+    <div class="page-header__text">
+        <h1 class="page-title" data-i18n="perf-title">绩效追踪</h1>
+        <p class="page-lead" data-i18n="perf-desc">Agent IC (Information Coefficient) 排行榜 - 基于回测数据评估各投资人预测能力</p>
+    </div>
+</header>
+
+<!-- Leaderboard -->
+<div class="card mb-24" style="padding:0; overflow:hidden;">
+    <div style="padding:16px 16px 8px; border-bottom:1px solid var(--border-color);">
+        <div class="flex items-center justify-between" style="flex-wrap:wrap; gap:8px;">
+            <h2 id="perf-leaderboard-heading" class="data-label" style="margin:0; font-size:inherit;" data-i18n="perf-leaderboard">IC 排行榜</h2>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-sm" onclick="exportPerfCSV()" id="perf-export-btn" style="display:none;" data-i18n="perf-export-csv">导出 CSV</button>
+                <button type="button" class="btn btn-sm" onclick="refreshLeaderboard()" data-i18n="perf-refresh">刷新</button>
+            </div>
+        </div>
+    </div>
+    <div id="leaderboard-content" class="perf-table-wrap" role="region" aria-live="polite" aria-labelledby="perf-leaderboard-heading">
+        <div style="padding:48px; text-align:center;" role="status">
+            <div class="spinner" style="margin:0 auto;" aria-hidden="true"></div>
+            <p class="text-muted mt-16" style="font-size:0.82rem;" data-i18n="perf-loading">加载中...</p>
+        </div>
+    </div>
+    <div id="winrate-pending" style="display:none; padding:6px 16px 10px; font-size:0.75rem; color:var(--text-muted); border-top:1px solid var(--border-color);">
+        <span id="winrate-pending-text"></span>
+    </div>
+</div>
+
+<!-- IC Bar Chart -->
+<div class="card mb-24" id="perf-chart-card" style="display:none;">
+    <div style="padding:12px 16px 0; border-bottom:1px solid var(--border-color); margin-bottom:12px;">
+        <span class="data-label" data-i18n="perf-chart-title">IC 得分可视化</span>
+    </div>
+    <div style="padding:12px 16px 16px; max-height:340px;">
+        <canvas id="perf-ic-chart" aria-label="IC Score Bar Chart" role="img"></canvas>
+    </div>
+</div>
+
+<!-- Run Backtest -->
+<div class="card">
+    <h2 class="data-label mb-12" style="margin:0 0 12px; font-size:inherit;" data-i18n="perf-new-backtest">运行新回测</h2>
+    <form class="flex items-center gap-12" style="flex-wrap:wrap;" onsubmit="event.preventDefault(); runBacktest();" aria-label="Run backtest">
+        <label for="perf-ticker" class="sr-only" data-i18n="perf-ticker-label">股票代码</label>
+        <input id="perf-ticker" type="text" class="form-input" style="max-width:160px; font-family:var(--font-data); text-transform:uppercase;" placeholder="AAPL" value="AAPL" aria-required="true" autocomplete="off">
+        <label for="perf-days" class="sr-only" data-i18n="perf-days-label">回测天数</label>
+        <select id="perf-days" class="form-select" style="max-width:120px;" aria-label="Backtest period in days">
+            <option value="30" data-i18n="perf-days-30">30 天</option>
+            <option value="60" data-i18n="perf-days-60">60 天</option>
+            <option value="90" data-i18n="perf-days-90">90 天</option>
+        </select>
+        <button type="submit" class="btn btn-primary" id="run-bt-btn" data-i18n="perf-run">运行回测</button>
+    </form>
+    <div id="backtest-result" class="mt-16" style="display:none;" aria-live="polite"></div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+function _t(key, fb) { return (typeof window.t === 'function') ? window.t(key, fb) : (fb || key); }
+
+var _perfData = [];
+var _perfChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    refreshLeaderboard();
+    document.addEventListener('augur:theme-change', function() {
+        if (_perfData.length > 0) renderICChart(_perfData);
+    });
+});
+
+function refreshLeaderboard() {
+    var content = document.getElementById('leaderboard-content');
+    content.innerHTML = '<div style="padding:24px; text-align:center;"><div class="spinner" style="margin:0 auto;" aria-hidden="true"></div></div>';
+
+    fetch('/api/backtest/leaderboard')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            renderLeaderboard(data.leaderboard || [], data);
+        })
+        .catch(function(err) {
+            content.innerHTML = '<div style="padding:24px; text-align:center; color:var(--text-muted);">' + escapeHtml(_t('perf-no-data')) + '</div>';
+        });
+}
+
+function renderLeaderboard(items, meta) {
+    var content = document.getElementById('leaderboard-content');
+    var exportBtn = document.getElementById('perf-export-btn');
+    var chartCard = document.getElementById('perf-chart-card');
+    var pendingEl = document.getElementById('winrate-pending');
+    var pendingText = document.getElementById('winrate-pending-text');
+
+    // Show pending predictions notice when live accuracy engine has data in flight
+    if (pendingEl && pendingText && meta) {
+        var pending = meta.pending_count || 0;
+        if (pending > 0) {
+            pendingText.textContent = pending + ' prediction' + (pending === 1 ? '' : 's') +
+                ' pending outcome (resolves after 30 days)';
+            pendingEl.style.display = '';
+        } else if (meta.has_live_accuracy) {
+            pendingText.textContent = 'Live accuracy based on resolved outcomes';
+            pendingEl.style.display = '';
+        } else {
+            pendingEl.style.display = 'none';
+        }
+    }
+
+    if (!items || items.length === 0) {
+        content.innerHTML = '<div style="padding:48px; text-align:center; color:var(--text-muted);">' +
+            '<div style="font-size:2rem; margin-bottom:8px;" aria-hidden="true">&#x1F3C6;</div>' +
+            '<div>' + escapeHtml(_t('perf-empty-title')) + '</div>' +
+            '<div style="font-size:0.78rem; margin-top:4px;">' + escapeHtml(_t('perf-empty-desc')) + '</div></div>';
+        if (exportBtn) exportBtn.style.display = 'none';
+        if (chartCard) chartCard.style.display = 'none';
+        return;
+    }
+
+    var sorted = items.slice().sort(function(a, b) { return (b.ic_60d || b.ic || 0) - (a.ic_60d || a.ic || 0); });
+    _perfData = sorted;
+
+    var html = '<table class="data-table"><caption class="sr-only">' + escapeHtml(_t('perf-leaderboard')) + '</caption><thead><tr>' +
+        '<th style="width:50px;">' + escapeHtml(_t('perf-col-rank')) + '</th>' +
+        '<th>' + escapeHtml(_t('perf-col-agent')) + '</th>' +
+        '<th class="text-right">IC 60d</th>' +
+        '<th class="text-right">' + escapeHtml(_t('perf-col-accuracy')) + '</th>' +
+        '<th class="text-right">' + escapeHtml(_t('perf-col-signals')) + '</th>' +
+        '</tr></thead><tbody>';
+
+    sorted.forEach(function(item, idx) {
+        var rank = idx + 1;
+        var rankClass = rank <= 3 ? ' top-3' : '';
+        var ic = item.ic_60d || item.ic || 0;
+        var accuracy = item.hit_rate || item.accuracy || 0;
+        var signals = item.total_predictions || item.signal_count || 0;
+        var icColor = ic > 0 ? 'var(--signal-buy)' : ic < 0 ? 'var(--signal-sell)' : 'var(--text-muted)';
+        // live_only agents were never backtested — 0.0000 would read as "measured
+        // zero IC" instead of "never measured", so show N/A instead.
+        var icDisplay = item.live_only
+            ? '<span class="text-muted" title="' + escapeHtml(_t('perf-live-only-hint', '尚未回测，仅有实盘预测记录')) + '">N/A</span>'
+            : ic.toFixed(4);
+        var nameSuffix = item.live_only
+            ? ' <span class="text-muted" style="font-size:0.68rem;" title="' + escapeHtml(_t('perf-live-only-hint', '尚未回测，仅有实盘预测记录')) + '">(' + escapeHtml(_t('perf-live-only-badge', '仅实盘')) + ')</span>'
+            : '';
+        html += '<tr>' +
+            '<td><span class="leaderboard-rank' + rankClass + '">' + rank + '</span></td>' +
+            '<td style="font-weight:600;">' + escapeHtml(item.agent_name || item.agent_id || '--') + nameSuffix + '</td>' +
+            '<td class="text-right text-mono" style="color:' + icColor + ';">' + icDisplay + '</td>' +
+            '<td class="text-right text-mono">' + (accuracy * 100).toFixed(1) + '%</td>' +
+            '<td class="text-right text-mono">' + signals + '</td>' +
+            '</tr>';
+    });
+
+    html += '</tbody></table>';
+    content.innerHTML = html;
+
+    if (exportBtn) exportBtn.style.display = '';
+    renderICChart(sorted);
+}
+
+function renderICChart(sorted) {
+    var chartCard = document.getElementById('perf-chart-card');
+    var canvas = document.getElementById('perf-ic-chart');
+    // live_only agents have no measured IC at all — plotting them as a 0.0
+    // bar would look identical to a real measured-zero IC, so exclude them
+    // from this specific chart (they still show up in the table with N/A).
+    var chartable = sorted.filter(function(item) { return !item.live_only; });
+    if (!chartCard || !canvas || !chartable.length) return;
+
+    chartCard.style.display = '';
+
+    var labels = chartable.map(function(item) { return item.agent_name || item.agent_id || '--'; });
+    var values = chartable.map(function(item) { return +(item.ic_60d || item.ic || 0).toFixed(4); });
+    var bgColors = values.map(function(v) { return v >= 0 ? 'rgba(0,200,100,0.75)' : 'rgba(255,60,60,0.75)'; });
+    var borderColors = values.map(function(v) { return v >= 0 ? 'rgba(0,200,100,1)' : 'rgba(255,60,60,1)'; });
+
+    var isDark = !document.documentElement.classList.contains('light');
+    var textColor = isDark ? '#b0b0c0' : '#444';
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+
+    if (_perfChart) { _perfChart.destroy(); _perfChart = null; }
+
+    _perfChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'IC 60d',
+                data: values,
+                backgroundColor: bgColors,
+                borderColor: borderColors,
+                borderWidth: 1,
+                borderRadius: 3
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) { return ' IC: ' + ctx.raw.toFixed(4); }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: gridColor },
+                    ticks: { color: textColor, font: { family: 'JetBrains Mono, monospace', size: 11 } },
+                    border: { color: gridColor }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: textColor, font: { size: 11 } }
+                }
+            }
+        }
+    });
+
+    canvas.style.height = Math.max(200, chartable.length * 22) + 'px';
+}
+
+function exportPerfCSV() {
+    if (!_perfData.length) { showToast(_t('perf-no-data'), 'warning'); return; }
+    var rows = ['﻿' + ['Rank', 'Agent', 'IC_60d', 'Accuracy_%', 'Signals'].join(',')];
+    _perfData.forEach(function(item, idx) {
+        var ic = item.live_only ? 'N/A' : (item.ic_60d || item.ic || 0).toFixed(4);
+        var acc = ((item.hit_rate || item.accuracy || 0) * 100).toFixed(1);
+        var sig = item.total_predictions || item.signal_count || 0;
+        rows.push([idx + 1, item.agent_name || item.agent_id || '--', ic, acc, sig].join(','));
+    });
+    var blob = new Blob([rows.join('\n')], {type: 'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'augur-leaderboard-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    showToast(_t('perf-exported'), 'success');
+}
+
+function runBacktest() {
+    var ticker = document.getElementById('perf-ticker').value.trim().toUpperCase() || 'AAPL';
+    var days = document.getElementById('perf-days').value || 30;
+    var btn = document.getElementById('run-bt-btn');
+    btn.disabled = true;
+    btn.textContent = _t('perf-running');
+
+    fetch('/api/backtest/run?ticker=' + ticker + '&days=' + days)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.textContent = _t('perf-run');
+            showToast(_t('perf-done').replace('{ticker}', ticker), 'success');
+            var result = document.getElementById('backtest-result');
+            result.style.display = 'block';
+            result.innerHTML = '<div class="card" style="background:var(--bg-primary);">' +
+                '<div class="flex items-center gap-24" style="flex-wrap:wrap;">' +
+                '<div><span class="data-label">' + escapeHtml(_t('perf-result-ticker')) + '</span><div class="text-mono" style="color:var(--accent-orange); font-weight:700;">' + escapeHtml(data.ticker || ticker) + '</div></div>' +
+                '<div><span class="data-label">' + escapeHtml(_t('perf-result-days')) + '</span><div class="text-mono">' + (data.days || days) + '</div></div>' +
+                '<div><span class="data-label">' + escapeHtml(_t('perf-result-ic')) + '</span><div class="text-mono" style="color:var(--signal-buy);">' + (data.consensus_ic || 0).toFixed(4) + '</div></div>' +
+                '<div><span class="data-label">' + escapeHtml(_t('perf-result-records')) + '</span><div class="text-mono">' + (data.total_records || 0) + '</div></div>' +
+                '</div></div>';
+            refreshLeaderboard();
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.textContent = _t('perf-run');
+            showToast(_t('perf-failed') + (err.message || err), 'error');
+        });
+}
+</script>
+{% endblock %}

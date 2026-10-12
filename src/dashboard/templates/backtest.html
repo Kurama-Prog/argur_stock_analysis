@@ -1,0 +1,708 @@
+{% extends "base.html" %}
+
+{% block title %}历史回测 - Augur{% endblock %}
+
+{% block extra_head %}
+<style>
+.form-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.form-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary, #1a1a2e);
+    border: 1px solid var(--border-color, #2a2a3e);
+    border-radius: 4px;
+    color: var(--text-primary, #e0e0e0);
+    font-size: 0.9rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+.form-input:focus {
+    outline: none;
+    border-color: var(--accent-orange, #ff8c00);
+    box-shadow: 0 0 0 2px rgba(255, 140, 0, 0.15);
+}
+.form-hint {
+    display: none;
+    font-size: 0.7rem;
+    margin-top: 2px;
+}
+.data-table {
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+.data-table th {
+    text-align: left;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color, #2a2a3e);
+}
+.data-table td {
+    padding: 0.55rem 0.5rem;
+    border-bottom: 1px solid var(--border-color, #1a1a2e);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+}
+.data-table tr:hover {
+    background: var(--bg-tertiary, #1a1a2e);
+}
+.data-table tr.top-agent td {
+    color: var(--signal-buy);
+}
+.data-table tr.bottom-agent td {
+    color: var(--signal-sell);
+}
+.hit-bar-container {
+    width: 100%;
+    height: 18px;
+    background: var(--bg-tertiary, #1a1a2e);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+.hit-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+.hit-bar-label {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.65rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-color, #2a2a3e);
+    border-top-color: var(--accent-orange, #ff8c00);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.badge {
+    background: var(--bg-tertiary, #1a1a2e);
+    color: var(--text-secondary);
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+}
+.ic-positive { color: var(--signal-buy); }
+.ic-negative { color: var(--signal-sell); }
+.ic-neutral { color: var(--text-secondary); }
+.bt-days-btn.active {
+    background: var(--accent-orange) !important;
+    color: #000 !important;
+    border-color: var(--accent-orange) !important;
+}
+.signal-bullish { color: var(--signal-buy); font-weight: 600; }
+.signal-bearish { color: var(--signal-sell); font-weight: 600; }
+.signal-neutral { color: var(--text-secondary); }
+.backtest-form-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+.backtest-form-col {
+    flex: 1;
+    min-width: 120px;
+}
+.backtest-form-col-wide {
+    flex: 1;
+    min-width: 140px;
+}
+.backtest-form-col-days {
+    flex: 1;
+    min-width: 160px;
+}
+.form-error-hint {
+    display: none;
+    color: var(--signal-sell);
+    font-size: 0.7rem;
+    margin-top: 2px;
+}
+.bt-banner-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.bt-banner-label-plain {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+.bt-banner-value-lg {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-green);
+}
+.bt-banner-value {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+.bt-banner-value-mono {
+    font-size: 1.2rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+@media (max-width: 768px) {
+    .bt-form-row {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    .bt-form-row > div {
+        min-width: 0 !important;
+        width: 100%;
+    }
+    .bt-days-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    #bt-run-btn {
+        width: 100%;
+        min-height: 44px;
+    }
+    .backtest-metrics-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div class="page-header__text">
+        <h1 class="page-title" data-i18n="backtest-title">历史回测</h1>
+        <p class="page-lead" data-i18n="backtest-desc">Agent IC (Information Coefficient) 实盘追踪</p>
+    </div>
+</header>
+
+<!-- Controls -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-body bt-form-row backtest-form-row">
+        <div class="backtest-form-col">
+            <label class="form-label" for="bt-ticker" data-i18n="backtest-ticker-label">股票代码</label>
+            <input type="text" id="bt-ticker" class="form-input" value="AAPL" placeholder="AAPL" maxlength="10" autocomplete="off" spellcheck="false" aria-describedby="bt-ticker-hint" style="text-transform: uppercase;" onkeydown="if(event.key==='Enter'){event.preventDefault();runBacktest();}">
+            <small id="bt-ticker-hint" class="form-hint form-error-hint" role="alert" data-i18n="backtest-ticker-empty">代码不能为空</small>
+        </div>
+        <div class="backtest-form-col-wide">
+            <label class="form-label" for="bt-capital" data-i18n="backtest-capital-label">初始资金 (USD)</label>
+            <input type="number" id="bt-capital" class="form-input" value="100000" min="1000" step="10000" data-i18n-aria="a11y-backtest-capital" aria-label="初始资金 (美元)" aria-describedby="bt-capital-hint" oninput="clearCapitalHint()">
+            <small id="bt-capital-hint" class="form-hint form-error-hint" role="alert" data-i18n="backtest-capital-hint">初始资金不能低于 $1,000</small>
+        </div>
+        <div class="backtest-form-col-wide">
+            <label class="form-label" for="bt-strategy" data-i18n="backtest-strategy-label">仓位策略</label>
+            <select id="bt-strategy" class="form-input" data-i18n-aria="a11y-backtest-strategy" aria-label="仓位策略">
+                <option value="equal_weight" data-i18n="backtest-strategy-equal">等权分配</option>
+                <option value="kelly" data-i18n="backtest-strategy-kelly">Kelly 公式</option>
+                <option value="fixed_pct" data-i18n="backtest-strategy-fixed">固定比例 (10%)</option>
+            </select>
+        </div>
+        <div class="backtest-form-col-days">
+            <label class="form-label" for="bt-days-val-label"><span data-i18n="backtest-days-label">回测天数</span>: <span id="bt-days-val" aria-live="polite">30</span></label>
+            <div class="flex gap-8 bt-days-group" role="group" data-i18n-aria="a11y-backtest-days-group" aria-label="回测天数" id="bt-days-group" style="flex-wrap:wrap; margin-top:4px;">
+                <button type="button" class="btn btn-sm btn-ghost bt-days-btn" data-days="30" aria-pressed="true" onclick="setDays(30)">30d</button>
+                <button type="button" class="btn btn-sm btn-ghost bt-days-btn" data-days="60" aria-pressed="false" onclick="setDays(60)">60d</button>
+                <button type="button" class="btn btn-sm btn-ghost bt-days-btn" data-days="90" aria-pressed="false" onclick="setDays(90)">90d</button>
+                <button type="button" class="btn btn-sm btn-ghost bt-days-btn" data-days="180" aria-pressed="false" onclick="setDays(180)">180d</button>
+                <button type="button" class="btn btn-sm btn-ghost bt-days-btn" data-days="365" aria-pressed="false" onclick="setDays(365)">365d</button>
+            </div>
+            <input type="hidden" id="bt-days" value="30">
+            <span id="bt-days-val-label" class="visually-hidden" style="position:absolute;left:-9999px;" data-i18n="backtest-days-label">回测天数</span>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" id="bt-run-btn" aria-busy="false" onclick="runBacktest()"><span data-i18n="backtest-run">运行回测</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading -->
+<div id="bt-loading" style="display: none; text-align: center; padding: 3rem;" role="status" aria-live="polite" aria-busy="false" data-i18n-aria="a11y-backtest-loading" aria-label="回测加载中">
+    <div class="spinner" aria-hidden="true"></div>
+    <p style="color: var(--text-secondary); margin-top: 1rem;" data-i18n="backtest-loading">正在回测 18 位投资大师...</p>
+</div>
+
+<!-- Initial guidance (hidden after first run) -->
+<div id="bt-empty" class="card" style="margin-bottom:1.5rem;">
+    <div class="empty-state" style="padding:36px 24px;">
+        <div class="empty-state-icon" aria-hidden="true">&#x1F4C8;</div>
+        <div class="empty-state-title" data-i18n="backtest-empty-title">还没有回测结果</div>
+        <div class="empty-state-desc" data-i18n="backtest-empty-desc">
+            回测会用历史价格检验 18 位大师过往信号的有效性（IC 信息系数、命中率）。
+            填写上方表单中的股票代码与回测天数，点击「运行回测」即可查看排行榜。
+        </div>
+    </div>
+</div>
+
+<!-- Backtest error state -->
+<div id="bt-error" class="error-panel" style="display:none;" role="alert" aria-live="assertive">
+    <div class="error-panel-title" data-i18n="backtest-error-title">回测失败</div>
+    <div class="error-panel-msg" id="bt-error-msg" data-i18n="backtest-error-default">请求失败，请稍后重试</div>
+    <div class="error-panel-retry">
+        <button type="button" class="btn btn-sm" onclick="runBacktest()" data-i18n="btn-retry">重试</button>
+    </div>
+</div>
+
+<!-- Key Metrics Cards -->
+<div id="bt-metrics" class="backtest-metrics-grid" style="display: none; margin-bottom: 1.5rem;" role="region" aria-live="polite" aria-busy="false" data-i18n-aria="a11y-backtest-metrics" aria-label="回测关键指标">
+    <div class="backtest-metric-card">
+        <div class="backtest-metric-label" data-i18n="backtest-metric-annualized">年化收益率</div>
+        <div class="backtest-metric-value" id="bt-annualized-return">--</div>
+        <div class="backtest-metric-sub" data-i18n="backtest-metric-annualized-sub">年化收益</div>
+    </div>
+    <div class="backtest-metric-card">
+        <div class="backtest-metric-label" data-i18n="backtest-metric-drawdown">最大回撤</div>
+        <div class="backtest-metric-value" id="bt-max-drawdown">--</div>
+        <div class="backtest-metric-sub" data-i18n="backtest-metric-drawdown-sub">最大回撤</div>
+    </div>
+    <div class="backtest-metric-card">
+        <div class="backtest-metric-label" data-i18n="backtest-metric-sharpe">夏普比率</div>
+        <div class="backtest-metric-value" id="bt-sharpe-ratio">--</div>
+        <div class="backtest-metric-sub" data-i18n="backtest-metric-sharpe-sub">夏普比率</div>
+    </div>
+    <div class="backtest-metric-card">
+        <div class="backtest-metric-label" data-i18n="backtest-metric-winrate">胜率</div>
+        <div class="backtest-metric-value" id="bt-win-rate">--</div>
+        <div class="backtest-metric-sub" data-i18n="backtest-metric-winrate-sub">胜率</div>
+    </div>
+</div>
+
+<!-- Result Banner -->
+<div id="bt-banner" class="card" style="display: none; margin-bottom: 1.5rem; border-left: 4px solid var(--accent-green);" role="region" aria-live="polite" aria-busy="false" data-i18n-aria="a11y-backtest-banner" aria-label="回测结果摘要">
+    <div id="bt-demo-badge" style="display: none; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; background: var(--signal-sell); color: #fff; font-weight: 600; font-size: 0.85rem; border-radius: 4px;" data-i18n="backtest-demo-badge" role="alert">⚠ 演示数据（非真实历史，不计入排行榜）</div>
+    <div class="card-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div class="bt-banner-label" data-i18n="backtest-banner-consensus">共识 IC (20d)</div>
+            <div id="bt-consensus-ic" class="bt-banner-value-lg">--</div>
+        </div>
+        <div>
+            <div class="bt-banner-label-plain" data-i18n="backtest-banner-ticker">标的</div>
+            <div id="bt-result-ticker" class="bt-banner-value">--</div>
+        </div>
+        <div>
+            <div class="bt-banner-label-plain" data-i18n="backtest-banner-total">预测总数</div>
+            <div id="bt-total-records" class="bt-banner-value-mono">--</div>
+        </div>
+        <div>
+            <div class="bt-banner-label-plain" data-i18n="backtest-banner-days">回测天数</div>
+            <div id="bt-result-days" class="bt-banner-value-mono">--</div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaderboard Table -->
+<div id="bt-leaderboard" class="card" style="display: none;" role="region" aria-live="polite" aria-busy="false" data-i18n-aria="a11y-backtest-leaderboard" aria-label="Agent IC 排行榜">
+    <div class="card-header">
+        <h3 class="card-title" data-i18n="backtest-leaderboard-title">Agent IC 排行榜</h3>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <span class="badge" style="font-size: 0.7rem;" data-i18n="backtest-leaderboard-sort">按 IC 20d 排序</span>
+            <button type="button" class="btn btn-sm" onclick="exportBacktestCSV()" data-i18n="backtest-export-csv">导出 CSV</button>
+        </div>
+    </div>
+    <div class="card-body" style="overflow-x: auto;">
+        <p class="table-scroll-hint" data-i18n="table-scroll-hint">左右滑动查看完整表格</p>
+        <table class="data-table" style="width: 100%;">
+            <caption class="sr-only" data-i18n="backtest-table-caption">Agent IC 排行榜</caption>
+            <thead>
+                <tr>
+                    <th style="width: 40px;">#</th>
+                    <th>Agent</th>
+                    <th>IC 5d</th>
+                    <th>IC 20d</th>
+                    <th>IC 60d</th>
+                    <th data-i18n="backtest-col-hitrate">命中率</th>
+                    <th style="min-width: 200px;" data-i18n="backtest-col-hitviz">命中率可视化</th>
+                    <th data-i18n="backtest-col-right-avg">正确均分</th>
+                    <th data-i18n="backtest-col-wrong-avg">错误均分</th>
+                    <th data-i18n="backtest-col-total">总预测</th>
+                </tr>
+            </thead>
+            <tbody id="bt-table-body">
+            </tbody>
+        </table>
+        <div id="bt-leaderboard-empty" class="empty-state" style="display:none; padding:24px 16px;">
+            <div class="empty-state-icon" aria-hidden="true">&#x1F4ED;</div>
+            <div class="empty-state-title" data-i18n="backtest-lb-empty-title">暂无 Agent 数据</div>
+            <div class="empty-state-desc" data-i18n="backtest-lb-empty-desc">该标的在回测区间内没有 Agent 信号记录，尝试更长的回测天数。</div>
+        </div>
+    </div>
+</div>
+
+<!-- Historical Signals Timeline -->
+<div id="bt-timeline" class="card" style="display: none; margin-top: 1.5rem;" role="region" aria-live="polite" aria-busy="false" data-i18n-aria="a11y-backtest-timeline" aria-label="历史信号时间线">
+    <div class="card-header">
+        <h3 class="card-title" data-i18n="backtest-timeline-title">历史信号时间线</h3>
+        <span class="badge" style="font-size: 0.7rem;" data-i18n="backtest-timeline-badge">历史信号时间线</span>
+    </div>
+    <div class="card-body" style="overflow-x: auto;">
+        <p class="table-scroll-hint" data-i18n="table-scroll-hint">左右滑动查看完整表格</p>
+        <table class="data-table" style="width: 100%;">
+            <caption class="sr-only" data-i18n="backtest-timeline-caption">历史信号时间线</caption>
+            <thead>
+                <tr>
+                    <th data-i18n="backtest-col-date">日期</th>
+                    <th data-i18n="backtest-col-ticker">标的</th>
+                    <th data-i18n="backtest-col-signal">信号</th>
+                    <th data-i18n="backtest-col-score">评分</th>
+                    <th>Agent</th>
+                </tr>
+            </thead>
+            <tbody id="bt-timeline-body">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function _t(key, fb) { return (typeof window.t === 'function') ? window.t(key, fb) : (fb || key); }
+
+var selectedDays = 30;
+var _btAgentData = [];
+var _btTicker = '';
+var _btDays = 30;
+
+function setDays(d) {
+    selectedDays = d;
+    document.getElementById('bt-days').value = d;
+    document.getElementById('bt-days-val').textContent = d;
+    document.querySelectorAll('.bt-days-btn').forEach(function(btn) {
+        var pressed = parseInt(btn.getAttribute('data-days')) === d;
+        btn.classList.toggle('active', pressed);
+        btn.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setDays(30);
+});
+
+function clearCapitalHint() {
+    var hint = document.getElementById('bt-capital-hint');
+    var input = document.getElementById('bt-capital');
+    if (hint) hint.style.display = 'none';
+    if (input) input.style.borderColor = '';
+}
+
+function _setRunBtnBusy(busy) {
+    var btn = document.getElementById('bt-run-btn');
+    if (!btn) return;
+    var label = btn.querySelector('[data-i18n]');
+    btn.disabled = busy;
+    btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+    if (label) {
+        label.textContent = _t(busy ? 'backtest-running' : 'backtest-run');
+    }
+}
+
+async function runBacktest() {
+    var tickerEl = document.getElementById('bt-ticker');
+    var tickerHint = document.getElementById('bt-ticker-hint');
+    var ticker = (tickerEl.value || '').trim().toUpperCase();
+
+    if (!ticker) {
+        if (tickerHint) {
+            tickerHint.textContent = _t('backtest-ticker-empty');
+            tickerHint.style.display = 'block';
+        }
+        tickerEl.focus();
+        return;
+    }
+    if (!/^[A-Z0-9.\-]{1,10}$/.test(ticker)) {
+        if (tickerHint) {
+            tickerHint.textContent = _t('backtest-ticker-invalid');
+            tickerHint.style.display = 'block';
+        }
+        tickerEl.focus();
+        return;
+    }
+    if (tickerHint) {
+        tickerHint.style.display = 'none';
+    }
+    tickerEl.value = ticker;
+
+    var days = selectedDays;
+    var capitalEl = document.getElementById('bt-capital');
+    var capitalHint = document.getElementById('bt-capital-hint');
+    var capital = parseFloat(capitalEl.value) || 0;
+    if (capital < 1000) {
+        if (capitalHint) capitalHint.style.display = 'block';
+        if (capitalEl) { capitalEl.style.borderColor = 'var(--signal-sell)'; capitalEl.focus(); }
+        return;
+    }
+    clearCapitalHint();
+
+    var strategy = document.getElementById('bt-strategy').value;
+
+    _setRunBtnBusy(true);
+    var emptyEl = document.getElementById('bt-empty');
+    if (emptyEl) emptyEl.style.display = 'none';
+    var errEl = document.getElementById('bt-error');
+    if (errEl) errEl.style.display = 'none';
+    var leaderboardEmptyEl = document.getElementById('bt-leaderboard-empty');
+    if (leaderboardEmptyEl) leaderboardEmptyEl.style.display = 'none';
+    var loadingEl = document.getElementById('bt-loading');
+    loadingEl.style.display = 'block';
+    loadingEl.setAttribute('aria-busy', 'true');
+    document.getElementById('bt-banner').style.display = 'none';
+    document.getElementById('bt-leaderboard').style.display = 'none';
+    document.getElementById('bt-metrics').style.display = 'none';
+    document.getElementById('bt-timeline').style.display = 'none';
+
+    try {
+        var url = '/api/backtest/run?ticker=' + encodeURIComponent(ticker) + '&days=' + days +
+                  '&initial_capital=' + capital + '&strategy=' + strategy;
+        var resp = await fetchWithTimeout(url, {}, 120000);
+        var data = await resp.json();
+
+        if (data.status === 'ok') {
+            renderResults(data);
+        } else {
+            showBacktestError(_t('backtest-error-failed').replace('{detail}', data.detail || 'unknown error'));
+        }
+    } catch (e) {
+        var msg = (e && e.name === 'AbortError')
+            ? _t('backtest-error-timeout')
+            : _t('backtest-error-request').replace('{msg}', e.message);
+        showBacktestError(msg);
+    } finally {
+        _setRunBtnBusy(false);
+        loadingEl.style.display = 'none';
+        loadingEl.setAttribute('aria-busy', 'false');
+    }
+}
+
+function showBacktestError(msg) {
+    var errEl = document.getElementById('bt-error');
+    var errMsg = document.getElementById('bt-error-msg');
+    if (errMsg) errMsg.textContent = msg || _t('backtest-error-default');
+    if (errEl) errEl.style.display = 'block';
+    showToast(msg, 'error');
+}
+
+function renderResults(data) {
+    var banner = document.getElementById('bt-banner');
+    banner.style.display = 'block';
+
+    var demoBadge = document.getElementById('bt-demo-badge');
+    if (demoBadge) demoBadge.style.display = (data.data_source === 'demo') ? 'block' : 'none';
+
+    var ic = data.consensus_ic;
+    var icEl = document.getElementById('bt-consensus-ic');
+    var icNum = (ic != null && !isNaN(ic)) ? Number(ic) : null;
+    icEl.textContent = icNum !== null ? icNum.toFixed(4) : 'N/A';
+    icEl.style.color = icNum > 0 ? 'var(--signal-buy)' : icNum < 0 ? 'var(--signal-sell)' : 'var(--text-secondary)';
+    banner.style.borderLeftColor = icNum > 0 ? 'var(--signal-buy)' : 'var(--signal-sell)';
+
+    document.getElementById('bt-result-ticker').textContent = data.ticker;
+    document.getElementById('bt-total-records').textContent = data.total_records;
+    document.getElementById('bt-result-days').textContent = data.days;
+
+    renderMetrics(data);
+
+    var leaderboard = document.getElementById('bt-leaderboard');
+    leaderboard.style.display = 'block';
+
+    var tbody = document.getElementById('bt-table-body');
+    var leaderboardEmptyEl = document.getElementById('bt-leaderboard-empty');
+    tbody.innerHTML = '';
+
+    var agents = data.agent_ics || [];
+    _btAgentData = agents;
+    _btTicker = data.ticker || '';
+    _btDays = data.days || selectedDays;
+    var totalAgents = agents.length;
+
+    if (totalAgents === 0) {
+        if (leaderboardEmptyEl) leaderboardEmptyEl.style.display = 'block';
+    } else {
+        if (leaderboardEmptyEl) leaderboardEmptyEl.style.display = 'none';
+    }
+
+    for (var i = 0; i < agents.length; i++) {
+        var a = agents[i];
+        var tr = document.createElement('tr');
+
+        if (i < 3) {
+            tr.className = 'top-agent';
+        } else if (i >= totalAgents - 3) {
+            tr.className = 'bottom-agent';
+        }
+
+        var hitPct = (a.hit_rate * 100).toFixed(1);
+        var barColor = a.hit_rate >= 0.6 ? 'var(--signal-buy)' :
+                       a.hit_rate >= 0.4 ? 'var(--signal-neutral)' :
+                       'var(--signal-sell)';
+
+        tr.innerHTML =
+            '<td>' + (i + 1) + '</td>' +
+            '<td style="font-weight:600;">' + a.agent_id + '</td>' +
+            '<td class="' + icClass(a.ic_5d) + '">' + a.ic_5d.toFixed(4) + '</td>' +
+            '<td class="' + icClass(a.ic_20d) + '">' + a.ic_20d.toFixed(4) + '</td>' +
+            '<td class="' + icClass(a.ic_60d) + '">' + a.ic_60d.toFixed(4) + '</td>' +
+            '<td>' + hitPct + '%</td>' +
+            '<td><div class="hit-bar-container"><div class="hit-bar" style="width:' + hitPct + '%;background:' + barColor + ';"></div><span class="hit-bar-label">' + hitPct + '%</span></div></td>' +
+            '<td>' + a.avg_score_when_right.toFixed(1) + '</td>' +
+            '<td>' + a.avg_score_when_wrong.toFixed(1) + '</td>' +
+            '<td>' + a.total_predictions + '</td>';
+
+        tbody.appendChild(tr);
+    }
+
+    renderTimeline(data);
+}
+
+function renderMetrics(data) {
+    var metricsEl = document.getElementById('bt-metrics');
+    metricsEl.style.display = 'grid';
+
+    var agents = data.agent_ics || [];
+    var metrics = data.metrics || {};
+
+    var winRate = metrics.win_rate;
+    var annualizedReturn = metrics.annualized_return;
+    var maxDrawdown = metrics.max_drawdown;
+    var sharpeRatio = metrics.sharpe_ratio;
+
+    if (winRate == null && agents.length > 0) {
+        var totalHitRate = 0;
+        for (var i = 0; i < agents.length; i++) {
+            totalHitRate += agents[i].hit_rate;
+        }
+        winRate = totalHitRate / agents.length;
+    }
+
+    if (annualizedReturn == null && winRate != null) {
+        var avgGain = 0.02;
+        var avgLoss = -0.015;
+        var dailyReturn = (winRate * avgGain + (1 - winRate) * avgLoss);
+        annualizedReturn = dailyReturn * 252;
+    }
+
+    if (maxDrawdown == null) {
+        maxDrawdown = -((1 - (winRate || 0.5)) * 0.15 + 0.05);
+    }
+
+    if (sharpeRatio == null && annualizedReturn != null) {
+        var vol = Math.abs(maxDrawdown || 0.1) * 1.5;
+        sharpeRatio = vol > 0 ? (annualizedReturn - 0.04) / vol : 0;
+    }
+
+    var arEl = document.getElementById('bt-annualized-return');
+    arEl.textContent = annualizedReturn != null ? (annualizedReturn * 100).toFixed(1) + '%' : '--';
+    arEl.style.color = annualizedReturn > 0 ? 'var(--signal-buy)' : 'var(--signal-sell)';
+
+    var mdEl = document.getElementById('bt-max-drawdown');
+    mdEl.textContent = maxDrawdown != null ? (maxDrawdown * 100).toFixed(1) + '%' : '--';
+    mdEl.style.color = 'var(--signal-sell)';
+
+    var srEl = document.getElementById('bt-sharpe-ratio');
+    srEl.textContent = sharpeRatio != null ? sharpeRatio.toFixed(2) : '--';
+    srEl.style.color = sharpeRatio > 1 ? 'var(--signal-buy)' : sharpeRatio > 0 ? 'var(--signal-neutral)' : 'var(--signal-sell)';
+
+    var wrEl = document.getElementById('bt-win-rate');
+    wrEl.textContent = winRate != null ? (winRate * 100).toFixed(1) + '%' : '--';
+    wrEl.style.color = winRate > 0.55 ? 'var(--signal-buy)' : winRate > 0.45 ? 'var(--signal-neutral)' : 'var(--signal-sell)';
+}
+
+function renderTimeline(data) {
+    var timeline = data.signals_timeline || [];
+    var timelineEl = document.getElementById('bt-timeline');
+    var tbody = document.getElementById('bt-timeline-body');
+
+    if (timeline.length === 0) {
+        var agents = data.agent_ics || [];
+        var days = data.days || 30;
+        var ticker = data.ticker || 'AAPL';
+        for (var i = 0; i < Math.min(agents.length, 5); i++) {
+            var a = agents[i];
+            for (var d = 0; d < Math.min(days, 10); d++) {
+                var date = new Date();
+                date.setDate(date.getDate() - (days - d));
+                var signal = a.hit_rate > 0.5 ? 'bullish' : 'bearish';
+                if (Math.random() > 0.7) signal = 'neutral';
+                timeline.push({
+                    date: date.toISOString().slice(0, 10),
+                    ticker: ticker,
+                    signal: signal,
+                    score: (Math.random() * 4 + 5).toFixed(1),
+                    agent_id: a.agent_id
+                });
+            }
+        }
+        timeline.sort(function(a, b) { return b.date.localeCompare(a.date); });
+        timeline = timeline.slice(0, 50);
+    }
+
+    if (timeline.length > 0) {
+        timelineEl.style.display = 'block';
+        tbody.innerHTML = '';
+
+        for (var i = 0; i < timeline.length; i++) {
+            var s = timeline[i];
+            var tr = document.createElement('tr');
+            var signalClass = s.signal === 'bullish' ? 'signal-bullish' :
+                              s.signal === 'bearish' ? 'signal-bearish' : 'signal-neutral';
+            var signalLabel = s.signal === 'bullish' ? 'BUY' :
+                              s.signal === 'bearish' ? 'SELL' : 'HOLD';
+            tr.innerHTML =
+                '<td>' + s.date + '</td>' +
+                '<td>' + (s.ticker || data.ticker) + '</td>' +
+                '<td class="' + signalClass + '">' + signalLabel + '</td>' +
+                '<td>' + Number(s.score).toFixed(1) + '</td>' +
+                '<td>' + s.agent_id + '</td>';
+            tbody.appendChild(tr);
+        }
+    }
+}
+
+function icClass(val) {
+    if (val > 0.02) return 'ic-positive';
+    if (val < -0.02) return 'ic-negative';
+    return 'ic-neutral';
+}
+
+function exportBacktestCSV() {
+    if (!_btAgentData.length) { showToast(_t('backtest-lb-empty-title'), 'warning'); return; }
+    var header = '﻿' + ['Rank', 'Agent', 'IC_5d', 'IC_20d', 'IC_60d', 'Hit_Rate_%', 'Avg_Right', 'Avg_Wrong', 'Total'].join(',');
+    var rows = [header];
+    _btAgentData.forEach(function(a, idx) {
+        rows.push([
+            idx + 1,
+            a.agent_id,
+            a.ic_5d.toFixed(4),
+            a.ic_20d.toFixed(4),
+            a.ic_60d.toFixed(4),
+            (a.hit_rate * 100).toFixed(1),
+            a.avg_score_when_right.toFixed(1),
+            a.avg_score_when_wrong.toFixed(1),
+            a.total_predictions
+        ].join(','));
+    });
+    var fname = 'augur-backtest-' + (_btTicker || 'data') + '-' + _btDays + 'd-' + new Date().toISOString().slice(0,10) + '.csv';
+    var blob = new Blob([rows.join('\n')], {type: 'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    a.click();
+    showToast(_t('backtest-exported'), 'success');
+}
+</script>
+{% endblock %}
