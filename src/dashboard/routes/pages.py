@@ -54,7 +54,10 @@ async def personas_page(request: Request):
 
 @router.get("/stocks", response_class=HTMLResponse, summary="股票分析页面")
 async def stocks_page(request: Request):
-    quick_tickers = ["AAPL", "NVDA", "MSFT", "GOOGL", "TSLA", "BRK.B", "META", "AMZN", "PDD", "BIDU"]
+    quick_tickers = [
+        "AAPL", "NVDA", "MSFT", "GOOGL", "TSLA", "BRK.B", "META", "AMZN", "PDD", "BIDU",
+        "600519.SS", "300750.SZ",
+    ]
     return templates.TemplateResponse(request=request, name="stocks.html", context={
         "title": "股票分析",
         "quick_tickers": quick_tickers,

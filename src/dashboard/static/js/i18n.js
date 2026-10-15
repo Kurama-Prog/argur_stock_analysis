@@ -900,6 +900,8 @@ window.I18N = {
         "a11y-chip-msft": "使用 MSFT 示例",
         "a11y-chip-btc": "使用 BTC-USD 示例",
         "a11y-chip-hk": "使用 00700.HK 示例",
+        "a11y-chip-ss": "使用 600519.SS 示例",
+        "a11y-chip-sz": "使用 300750.SZ 示例",
         // Featured persona row (index.html)
         "a11y-featured-persona": "用 {name} 大师分析",
         // Personas council description
@@ -1865,6 +1867,8 @@ window.I18N = {
         "a11y-chip-msft": "Try MSFT example",
         "a11y-chip-btc": "Try BTC-USD example",
         "a11y-chip-hk": "Try 00700.HK example",
+        "a11y-chip-ss": "Try 600519.SS example",
+        "a11y-chip-sz": "Try 300750.SZ example",
         // Featured persona row (index.html)
         "a11y-featured-persona": "Analyze with {name}",
         // Personas council description
